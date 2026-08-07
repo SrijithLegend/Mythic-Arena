@@ -1,3 +1,5 @@
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 
 public class Player {
@@ -15,6 +17,10 @@ public class Player {
     public static int speed;
     public static String ability;
     public static int total_stats;
+
+    public static int xp = 0;
+    public static List<String> unlockedMoves = new ArrayList<>();
+    public static List<String> unlockedUltimates = new ArrayList<>();
 
     public static void setPlayerName(Scanner scanner) {
         System.out.print("What is your name? ");
@@ -54,33 +60,20 @@ public class Player {
 
     public static void setPlayerAbility(Scanner scanner) {
 
-        String[] ability_options = {"Warrior", "Mage", "Rogue", "Paladin"};
-
         System.out.println("\n--- Choose Your Ability ---");
-        for (int i = 0; i < ability_options.length; i++) {
-            System.out.println((i + 1) + ". " + ability_options[i]);
+        if (speciality == null) {
+            System.out.println("Please set your specialty first.");
+            return;
+        } else if (speciality.equals("Warrior")) {
+            ability = "Berserk";
+        } else if (speciality.equals("Mage")) {
+            ability = "Fireball";
+        } else if (speciality.equals("Rogue")) {
+            ability = "Stealth";
+        } else if (speciality.equals("Paladin")) {
+            ability = "Holy Light";
         }
-
-        int choice = -1;
-
-        while (choice < 1 || choice > ability_options.length) {
-            System.out.print("Enter choice (1-" + ability_options.length + "): ");
-
-            if (scanner.hasNextInt()) {
-                choice = scanner.nextInt();
-                scanner.nextLine(); 
-
-                if (choice < 1 || choice > ability_options.length) {
-                    System.out.println("Invalid selection. Please choose between 1 and " + ability_options.length + ".");
-                }
-            } else {
-                System.out.println("Invalid input! Please enter a number.");
-                scanner.nextLine(); 
-            }
-        }
-
-        ability = ability_options[choice - 1];
-        System.out.println("Ability set to: " + ability + "\n");
+        System.out.println("Ability set to: " + ability + "for Specialty: " + speciality + "\n");
     }
 
     public class setPlayerstats {
@@ -110,25 +103,25 @@ public class Player {
                 System.out.println("=================================");
                 System.out.println("Level: " + level + " | Available Points: " + maxPoints + "\n");
 
-                hp = getValidStatInput(scanner, "HP", remaining);
+                hp = getValidStatInput(scanner, "HP", remaining, 1);
                 remaining -= hp;
 
-                attack = getValidStatInput(scanner, "Attack", remaining);
+                attack = getValidStatInput(scanner, "Attack", remaining, 1);
                 remaining -= attack;
 
-                defense = getValidStatInput(scanner, "Defense", remaining);
+                defense = getValidStatInput(scanner, "Defense", remaining, 1);
                 remaining -= defense;
 
-                magicAttack = getValidStatInput(scanner, "Magic Attack", remaining);
+                magicAttack = getValidStatInput(scanner, "Magic Attack", remaining, 1);
                 remaining -= magicAttack;
 
-                magicDefense = getValidStatInput(scanner, "Magic Defense", remaining);
+                magicDefense = getValidStatInput(scanner, "Magic Defense", remaining, 1);
                 remaining -= magicDefense;
 
-                speed = getValidStatInput(scanner, "Speed", remaining);
+                speed = getValidStatInput(scanner, "Speed", remaining, 1);
                 remaining -= speed;
 
-                ability = getValidStatInput(scanner, "Ability", remaining);
+                ability = getValidStatInput(scanner, "Ability", remaining, 1);
                 remaining -= ability;
 
                 int totalAllocated = hp + attack + defense + magicAttack + magicDefense + speed + ability;
@@ -143,19 +136,19 @@ public class Player {
             }
         }
 
-        private static int getValidStatInput(Scanner scanner, String statName, int remainingPoints) {
+        private static int getValidStatInput(Scanner scanner, String statName, int remainingPoints, int minPoints) {
 
-            int input = 0;
-            
-            while (input < 1 || input > remainingPoints) {
-                System.out.printf("Enter %-15s (Points Left: %d, Min: 1): ", statName, remainingPoints);
-                
+            int input = minPoints - 1;
+
+            while (input < minPoints || input > remainingPoints) {
+                System.out.printf("Enter %-15s (Points Left: %d, Min: %d): ", statName, remainingPoints, minPoints);
+
                 if (scanner.hasNextInt()) {
                     input = scanner.nextInt();
-                    scanner.nextLine(); 
+                    scanner.nextLine();
 
-                    if (input < 1) {
-                        System.out.println("  -> Each stat must have at least 1 point!");
+                    if (input < minPoints) {
+                        System.out.println("  -> Each stat must have at least " + minPoints + " point(s)!");
                     } else if (input > remainingPoints) {
                         System.out.println("  -> You only have " + remainingPoints + " points remaining!");
                     }
@@ -167,11 +160,54 @@ public class Player {
             return input;
         }
 
-        public static void levelUp(Scanner scanner) {
-            level++;
-            System.out.println("\n🎉 LEVEL UP! You reached Level " + level + "!");
-            System.out.println("You received +10 new stat points. Time to redistribute your stats!");
-            setPlayerStats(scanner);
+        public static void allocateNewPoints(Scanner scanner, int newPoints) {
+            boolean validAllocation = false;
+
+            while (!validAllocation) {
+                int remaining = newPoints;
+                System.out.println("\n=================================");
+                System.out.println("      ALLOCATE NEW STAT POINTS   ");
+                System.out.println("=================================");
+                System.out.println("Level: " + level + " | New Points to Spend: " + newPoints + "\n");
+
+                int hpGain = getValidStatInput(scanner, "HP", remaining, 0);
+                remaining -= hpGain;
+
+                int attackGain = getValidStatInput(scanner, "Attack", remaining, 0);
+                remaining -= attackGain;
+
+                int defenseGain = getValidStatInput(scanner, "Defense", remaining, 0);
+                remaining -= defenseGain;
+
+                int magicAttackGain = getValidStatInput(scanner, "Magic Attack", remaining, 0);
+                remaining -= magicAttackGain;
+
+                int magicDefenseGain = getValidStatInput(scanner, "Magic Defense", remaining, 0);
+                remaining -= magicDefenseGain;
+
+                int speedGain = getValidStatInput(scanner, "Speed", remaining, 0);
+                remaining -= speedGain;
+
+                int abilityGain = getValidStatInput(scanner, "Ability", remaining, 0);
+                remaining -= abilityGain;
+
+                int totalAllocated = hpGain + attackGain + defenseGain + magicAttackGain + magicDefenseGain + speedGain + abilityGain;
+
+                if (totalAllocated == newPoints) {
+                    hp += hpGain;
+                    attack += attackGain;
+                    defense += defenseGain;
+                    magicAttack += magicAttackGain;
+                    magicDefense += magicDefenseGain;
+                    speed += speedGain;
+                    ability += abilityGain;
+                    validAllocation = true;
+                    System.out.println("\n✓ Stat points allocated!");
+                } else {
+                    System.out.println("\n[ERROR] You used " + totalAllocated + " out of " + newPoints + " points.");
+                    System.out.println("You must allocate ALL " + newPoints + " points. Let's try again.\n");
+                }
+            }
         }
     }
 
@@ -180,12 +216,14 @@ public class Player {
         System.out.println("Name: " + name);
         System.out.println("Specialty: " + speciality);
         System.out.println("Level: " + setPlayerstats.level);
+        System.out.println("XP: " + xp + " / " + LevelSystem.xpForLevel(setPlayerstats.level));
         System.out.println("HP: " + setPlayerstats.hp);
         System.out.println("Attack: " + setPlayerstats.attack);
         System.out.println("Defense: " + setPlayerstats.defense);
         System.out.println("Magic Attack: " + setPlayerstats.magicAttack);
         System.out.println("Magic Defense: " + setPlayerstats.magicDefense);
         System.out.println("Speed: " + setPlayerstats.speed);
+        System.out.println("Total Stats: " + (setPlayerstats.hp + setPlayerstats.attack + setPlayerstats.defense + setPlayerstats.magicAttack + setPlayerstats.magicDefense + setPlayerstats.speed + setPlayerstats.ability));
         System.out.println("Ability: " + setPlayerstats.ability);
     }
 }
