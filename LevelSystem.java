@@ -48,8 +48,4 @@ public class LevelSystem {
             System.out.println("ULTIMATE ABILITY unlocked: " + ultimate);
         }
     }
-
-    public static double enemyDifficultyMultiplier(int playerLevel) {
-        return 1.0 + (playerLevel - 1) * 0.15;
-    }
 }
