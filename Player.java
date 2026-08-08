@@ -8,15 +8,8 @@ public class Player {
 
     public static String speciality;
 
-    public static int level = 1;
-    public static int hp;
-    public static int attack;
-    public static int defense;
-    public static int magic_attack;
-    public static int magic_defense;
-    public static int speed;
     public static String ability;
-    public static int total_stats;
+
 
     public static int xp = 0;
     public static List<String> unlockedMoves = new ArrayList<>();
@@ -71,7 +64,7 @@ public class Player {
     }
 }
 
-    public class setPlayerstats {
+    public static class setPlayerstats {
 
         public static int level = 1;
         
@@ -206,6 +199,19 @@ public class Player {
         }
     }
 
+    public static void setPlayerMoves(Scanner scanner) {
+        if (speciality == null) {
+            System.out.println("Please set your specialty first.");
+            return;
+        }
+        switch (speciality) {
+            case "Warrior" -> Moves.selectedMoves = Moves.chooseWarriorMoves(scanner);
+            case "Mage"    -> Moves.selectedMoves = Moves.chooseMageMoves(scanner);
+            case "Rogue"   -> Moves.selectedMoves = Moves.chooseRogueMoves(scanner);
+            case "Paladin" -> Moves.selectedMoves = Moves.choosePaladinMoves(scanner);
+        }
+    }
+
     public static boolean validateHero() {
             if (Player.name == null || Player.name.isBlank()) {
                 System.out.println("Error: name not set.");
@@ -231,7 +237,6 @@ public class Player {
             return true;
         }
 
-
     public static void displayPlayerStats() {
         System.out.println("\n--- PLAYER STATS ---");
         System.out.println("Name: " + name);
@@ -246,6 +251,13 @@ public class Player {
         System.out.println("Speed: " + setPlayerstats.speed);
         System.out.println("Total Stats: " + (setPlayerstats.hp + setPlayerstats.attack + setPlayerstats.defense + setPlayerstats.magicAttack + setPlayerstats.magicDefense + setPlayerstats.speed + setPlayerstats.ability));
         System.out.println("Ability: " + ability);
-        System.out.println("Current Moves: " + java.util.Arrays.toString(Moves.chooseMoves()));
+        System.out.println("Current Moves:");
+        if (Moves.selectedMoves != null) {
+            for (int i = 0; i < Moves.selectedMoves.length; i++) {
+                System.out.println("  " + (i + 1) + ". " + Moves.selectedMoves[i].description());
+            }
+        } else {
+            System.out.println("  (none selected)");
+        }
     }
 }

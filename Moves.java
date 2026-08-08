@@ -4,6 +4,8 @@ public class Moves {
 
     public record Move(String description) {}
 
+    public static Move[] selectedMoves = null;
+    
     public static Move[] chooseWarriorMoves(Scanner scanner) {
         Move[] warriorMoves = {
             new Move("Whirlwind Slash — 1.2x attack, all enemies. Costs 20% current HP."),
