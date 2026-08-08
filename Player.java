@@ -246,5 +246,6 @@ public class Player {
         System.out.println("Speed: " + setPlayerstats.speed);
         System.out.println("Total Stats: " + (setPlayerstats.hp + setPlayerstats.attack + setPlayerstats.defense + setPlayerstats.magicAttack + setPlayerstats.magicDefense + setPlayerstats.speed + setPlayerstats.ability));
         System.out.println("Ability: " + ability);
+        System.out.println("Current Moves: " + java.util.Arrays.toString(Moves.chooseMoves()));
     }
 }

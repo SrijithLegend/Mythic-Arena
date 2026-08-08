@@ -30,9 +30,9 @@ public class Character {
                 }
             }
 
-            String selected = warriorOptions[choice - 1];
-            System.out.println("Ability set to: " + selected + "\n");
-            return selected;
+            String ability = warriorOptions[choice - 1];
+            System.out.println("Ability set to: " + ability + "\n");
+            return ability;
         }
 
         public static String chooseMageAbility(Scanner scanner) {
@@ -66,9 +66,9 @@ public class Character {
             }
         }
 
-        String selected = mageOptions[choice - 1];
-        System.out.println("Ability set to: " + selected + "\n");
-        return selected;
+        String ability = mageOptions[choice - 1];
+        System.out.println("Ability set to: " + ability + "\n");
+        return ability;
     }
 
 
@@ -103,9 +103,9 @@ public class Character {
             }
         }
 
-            String selected = rogueOptions[choice - 1];
-            System.out.println("Ability set to: " + selected + "\n");
-            return selected;
+            String ability = rogueOptions[choice - 1];
+            System.out.println("Ability set to: " + ability + "\n");
+            return ability;
     }   
 
         public static String choosePaladinAbility(Scanner scanner) {
