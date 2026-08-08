@@ -245,6 +245,6 @@ public class Player {
         System.out.println("Magic Defense: " + setPlayerstats.magicDefense);
         System.out.println("Speed: " + setPlayerstats.speed);
         System.out.println("Total Stats: " + (setPlayerstats.hp + setPlayerstats.attack + setPlayerstats.defense + setPlayerstats.magicAttack + setPlayerstats.magicDefense + setPlayerstats.speed + setPlayerstats.ability));
-        System.out.println("Ability: " + setPlayerstats.ability);
+        System.out.println("Ability: " + ability);
     }
 }

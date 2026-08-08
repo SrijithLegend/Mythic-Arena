@@ -43,7 +43,7 @@ public class Character {
                 "Mana Burst : Deal 2.0x magic attack damage. Costs 30% max HP. Resets cooldown if it kills opponent.", 
             };
 
-        System.out.println("\n--- Choose Your Specialty ---");
+        System.out.println("\n--- Choose Your Ability ---");
         for (int i = 0; i < mageOptions.length; i++) {
             System.out.println((i + 1) + ". " + mageOptions[i]);
         }
@@ -80,7 +80,7 @@ public class Character {
                 "Poison Dart : Deal 0.6x attack damage + apply poison (5% max HP damage per turn for 4 turns). Low burst, high sustained.", 
             };
 
-        System.out.println("\n--- Choose Your Specialty ---");
+        System.out.println("\n--- Choose Your Ability ---");
         for (int i = 0; i < rogueOptions.length; i++) {
             System.out.println((i + 1) + ". " + rogueOptions[i]);
         }
@@ -116,7 +116,7 @@ public class Character {
                 "Judgment : Deal 2.0x attack damage if opponent is below 50% HP, otherwise 1.0x damage. High risk/reward.", 
             };
 
-        System.out.println("\n--- Choose Your Specialty ---");
+        System.out.println("\n--- Choose Your Ability ---");
         for (int i = 0; i < paladinOptions.length; i++) {
             System.out.println((i + 1) + ". " + paladinOptions[i]);
         }
