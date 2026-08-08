@@ -3,42 +3,39 @@ import java.util.Scanner;
 public class Character {
 
 
-        public static void setWarriorSpeciality(Scanner scanner) {
-
-        String[] warriorOptions = {
-                "Whirlwind Slash : Deal 1.2x attack damage to all enemies. Costs 20% of current HP.", 
-                "Shield Bash : Deal 0.8x attack damage + stun opponent for 1 turn (50% hit chance). Scales with defense.", 
-                "Execute : Deal 2.0x attack damage if opponent is below 30% HP, otherwise 0.5x damage. High risk/reward.", 
+        public static String chooseWarriorAbility(Scanner scanner) {
+            String[] warriorOptions = {
+                "Whirlwind Slash : Deal 1.2x attack damage to all enemies. Costs 20% of current HP.",
+                "Shield Bash : Deal 0.8x attack damage + stun opponent for 1 turn (50% hit chance).",
+                "Execute : Deal 2.0x attack damage if opponent is below 30% HP, otherwise 0.5x damage."
             };
 
-        System.out.println("\n--- Choose Your Specialty ---");
-        for (int i = 0; i < warriorOptions.length; i++) {
-            System.out.println((i + 1) + ". " + warriorOptions[i]);
-        }
-
-        int choice = -1;
-
-        while (choice < 1 || choice > warriorOptions.length) {
-            System.out.print("Enter choice (1-" + warriorOptions.length + "): ");
-
-            if (scanner.hasNextInt()) {
-                choice = scanner.nextInt();
-                scanner.nextLine(); 
-
-                if (choice < 1 || choice > warriorOptions.length) {
-                    System.out.println("Invalid selection. Please choose between 1 and " + warriorOptions.length + ".");
-                }
-            } else {
-                System.out.println("Invalid input! Please enter a number.");
-                scanner.nextLine(); 
+            System.out.println("\n--- Choose Your Ability ---");
+            for (int i = 0; i < warriorOptions.length; i++) {
+                System.out.println((i + 1) + ". " + warriorOptions[i]);
             }
+
+            int choice = -1;
+            while (choice < 1 || choice > warriorOptions.length) {
+                System.out.print("Enter choice (1-" + warriorOptions.length + "): ");
+                if (scanner.hasNextInt()) {
+                    choice = scanner.nextInt();
+                    scanner.nextLine();
+                    if (choice < 1 || choice > warriorOptions.length) {
+                        System.out.println("Invalid selection.");
+                    }
+                } else {
+                    System.out.println("Invalid input! Please enter a number.");
+                    scanner.nextLine();
+                }
+            }
+
+            String selected = warriorOptions[choice - 1];
+            System.out.println("Ability set to: " + selected + "\n");
+            return selected;
         }
 
-        String warriorSpeciality = warriorOptions[choice - 1];
-        System.out.println("Specialty set to: " + warriorSpeciality + "\n");
-    }   
-
-        public static void setMageSpeciality(Scanner scanner) {
+        public static String chooseMageAbility(Scanner scanner) {
 
         String[] mageOptions = {
                 "Fireball : Deal 1.5x magic attack damage to all enemies. Can chain (50% chance to hit same target twice)..", 
@@ -69,12 +66,13 @@ public class Character {
             }
         }
 
-        String mageSpeciality = mageOptions[choice - 1];
-        System.out.println("Specialty set to: " + mageSpeciality + "\n");
+        String selected = mageOptions[choice - 1];
+        System.out.println("Ability set to: " + selected + "\n");
+        return selected;
     }
 
 
-    public static void setRogueSpeciality(Scanner scanner) {
+    public static String chooseRogueAbility(Scanner scanner) {
 
         String[] rogueOptions = {
                 "Assassinate : Deal 1.8x attack damage + guaranteed critical (2x multiplier). Only usable if you move first this turn.", 
@@ -105,11 +103,12 @@ public class Character {
             }
         }
 
-        String rogueSpeciality = rogueOptions[choice - 1];
-        System.out.println("Specialty set to: " + rogueSpeciality + "\n");
+            String selected = rogueOptions[choice - 1];
+            System.out.println("Ability set to: " + selected + "\n");
+            return selected;
     }   
 
-        public static void setPaladinSpeciality(Scanner scanner) {
+        public static String choosePaladinAbility(Scanner scanner) {
 
         String[] paladinOptions = {
                 "Divine Strike : Deal 1.5x attack damage with a 50% chance to heal self for 20% max HP.", 
@@ -142,6 +141,7 @@ public class Character {
 
         String paladinSpeciality = paladinOptions[choice - 1];
         System.out.println("Specialty set to: " + paladinSpeciality + "\n");
+        return paladinSpeciality;
     }
 
 }   

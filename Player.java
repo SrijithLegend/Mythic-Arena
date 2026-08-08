@@ -59,22 +59,17 @@ public class Player {
     }
 
     public static void setPlayerAbility(Scanner scanner) {
-
-        System.out.println("\n--- Choose Your Ability ---");
-        if (speciality == null) {
-            System.out.println("Please set your specialty first.");
-            return;
-        } else if (speciality.equals("Warrior")) {
-            ability = "Berserk";
-        } else if (speciality.equals("Mage")) {
-            ability = "Fireball";
-        } else if (speciality.equals("Rogue")) {
-            ability = "Stealth";
-        } else if (speciality.equals("Paladin")) {
-            ability = "Holy Light";
-        }
-        System.out.println("Ability set to: " + ability + "for Specialty: " + speciality + "\n");
+    if (speciality == null) {
+        System.out.println("Please set your specialty first.");
+        return;
     }
+    switch (speciality) {
+        case "Warrior" -> ability = Character.chooseWarriorAbility(scanner);
+        case "Mage" -> ability = Character.chooseMageAbility(scanner);
+        case "Rogue" -> ability = Character.chooseRogueAbility(scanner);
+        case "Paladin" -> ability = Character.choosePaladinAbility(scanner);
+    }
+}
 
     public class setPlayerstats {
 
@@ -210,6 +205,32 @@ public class Player {
             }
         }
     }
+
+    public static boolean validateHero() {
+            if (Player.name == null || Player.name.isBlank()) {
+                System.out.println("Error: name not set.");
+                return false;
+            }
+            if (Player.speciality == null) {
+                System.out.println("Error: specialty not set.");
+                return false;
+            }
+            if (Player.ability == null) {
+                System.out.println("Error: ability not set.");
+                return false;
+            }
+            int total = Player.setPlayerstats.hp + Player.setPlayerstats.attack
+                    + Player.setPlayerstats.defense + Player.setPlayerstats.magicAttack
+                    + Player.setPlayerstats.magicDefense + Player.setPlayerstats.speed
+                    + Player.setPlayerstats.ability;
+            int expected = Player.setPlayerstats.getMaxStatsForLevel();
+            if (total != expected) {
+                System.out.println("Error: stat points don't add up (" + total + "/" + expected + ").");
+                return false;
+            }
+            return true;
+        }
+
 
     public static void displayPlayerStats() {
         System.out.println("\n--- PLAYER STATS ---");

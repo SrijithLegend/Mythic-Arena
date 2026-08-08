@@ -30,7 +30,13 @@ public class Main {
         Player.setPlayerSpeciality(scanner);
         Player.setPlayerAbility(scanner);
         Player.setPlayerstats.setPlayerStats(scanner);
-    }
+
+        if (Player.validateHero()) {
+            Player.displayPlayerStats();
+        } else {
+            System.out.println("Hero creation failed validation. Try again.");
+        }
+}
 
     private static void gainXp(Scanner scanner) {
         if (Player.name == null) {
