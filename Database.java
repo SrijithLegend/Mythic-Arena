@@ -1,6 +1,7 @@
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.Statement;
 import java.sql.SQLException;
 
@@ -78,6 +79,57 @@ public class Database {
         } catch (SQLException e) {
             System.out.println("Something went wrong with the database!");
             e.printStackTrace();
+        }
+    }
+    
+    public static boolean loadPlayer(String name) {
+        try {
+            Class.forName("org.sqlite.JDBC");
+        } catch (ClassNotFoundException e) {
+            System.out.println("ERROR: driver not found!");
+            return false;
+        }
+
+        String url = "jdbc:sqlite:game_data.db";
+        String selectSql = "SELECT * FROM player_stats WHERE name = ? ORDER BY id DESC LIMIT 1";
+
+        try (Connection conn = DriverManager.getConnection(url);
+            PreparedStatement pstmt = conn.prepareStatement(selectSql)) {
+
+            pstmt.setString(1, name);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (!rs.next()) {
+                    System.out.println("No saved character named '" + name + "' found.");
+                    return false;
+                }
+
+                Player.name = rs.getString("name");
+                Player.speciality = rs.getString("specialty");
+                Player.setPlayerstats.level = rs.getInt("level");
+                Player.xp = rs.getInt("xp");
+                Player.setPlayerstats.hp = rs.getInt("hp");
+                Player.setPlayerstats.attack = rs.getInt("attack");
+                Player.setPlayerstats.defense = rs.getInt("defense");
+                Player.setPlayerstats.magicAttack = rs.getInt("magic_attack");
+                Player.setPlayerstats.magicDefense = rs.getInt("magic_defense");
+                Player.setPlayerstats.speed = rs.getInt("speed");
+                Player.ability = rs.getString("ability");
+
+                Moves.selectedMoves = new Moves.Move[] {
+                    new Moves.Move(rs.getString("move1")),
+                    new Moves.Move(rs.getString("move2")),
+                    new Moves.Move(rs.getString("move3")),
+                    new Moves.Move(rs.getString("move4"))
+                };
+
+                System.out.println("Character '" + Player.name + "' loaded successfully!");
+                return true;
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Something went wrong loading the character!");
+            e.printStackTrace();
+            return false;
         }
     }
 }

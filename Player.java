@@ -217,6 +217,10 @@ public class Player {
                 System.out.println("Error: name not set.");
                 return false;
             }
+            if (Moves.selectedMoves == null) {
+                System.out.println("Error: moves not set.");
+                return false;
+            }
             if (Player.speciality == null) {
                 System.out.println("Error: specialty not set.");
                 return false;

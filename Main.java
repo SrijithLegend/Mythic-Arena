@@ -11,6 +11,7 @@ public class Main {
             System.out.println("  1. Create Hero");
             System.out.println("  2. View Hero");
             System.out.println("  3. Gain XP");
+            System.out.println("  4. Load Game");
             System.out.println("  0. Exit");
 
             int choice = readInt(scanner, "Your choice: ");
@@ -18,24 +19,49 @@ public class Main {
                 case 1 -> createHero(scanner);
                 case 2 -> Player.displayPlayerStats();
                 case 3 -> gainXp(scanner);
+                case 4 -> {
+                System.out.print("Enter character name to load: ");
+                String loadName = scanner.nextLine();
+                Database.loadPlayer(loadName);
+            }
                 case 0 -> running = false;
                 default -> System.out.println("Unknown option.");
+                
             }
         }
         System.out.println("\nThanks for playing the RPG Simulator. Goodbye!");
     }
 
     private static void createHero(Scanner scanner) {
-        Player.setPlayerName(scanner);
-        Player.setPlayerSpeciality(scanner);
-        Player.setPlayerAbility(scanner);
-        Player.setPlayerstats.setPlayerStats(scanner);
+    Player.setPlayerName(scanner);
+    Player.setPlayerSpeciality(scanner);
+    Player.setPlayerAbility(scanner);
+    Player.setPlayerMoves(scanner);        
+    Player.setPlayerstats.setPlayerStats(scanner);
 
-        if (Player.validateHero()) {
-            Player.displayPlayerStats();
-        } else {
-            System.out.println("Hero creation failed validation. Try again.");
-        }
+    if (Player.validateHero()) {
+        Player.displayPlayerStats();
+
+        Database.savePlayer(
+            Player.name,
+            Player.speciality,
+            Player.setPlayerstats.level,
+            Player.xp,
+            Player.setPlayerstats.hp,
+            Player.setPlayerstats.attack,
+            Player.setPlayerstats.defense,
+            Player.setPlayerstats.magicAttack,
+            Player.setPlayerstats.magicDefense,
+            Player.setPlayerstats.speed,
+            Player.ability,
+            Moves.selectedMoves[0].description(),
+            Moves.selectedMoves[1].description(),
+            Moves.selectedMoves[2].description(),
+            Moves.selectedMoves[3].description()
+        );
+    } else {
+        System.out.println("Hero creation failed validation. Try again.");
+    }
 }
 
     private static void gainXp(Scanner scanner) {
@@ -64,3 +90,4 @@ public class Main {
         return value;
     }
 }
+
