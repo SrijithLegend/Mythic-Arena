@@ -82,45 +82,61 @@ public class Database {
         }
     }
 
-public static void loadPlayer(String searchName) {
-        // The SQL command to find a specific player
-        String query = "SELECT * FROM player_stats WHERE name = ?";
+public static boolean loadPlayer(String searchName) {
+    try {
+        Class.forName("org.sqlite.JDBC");
+    } catch (ClassNotFoundException e) {
+        System.out.println("ERROR: driver not found!");
+        return false;
+    }
 
-        String url = "jdbc:sqlite:game_data.db";
+    String url = "jdbc:sqlite:game_data.db";
+    String selectSql = "SELECT * FROM player_stats WHERE name = ? ORDER BY id DESC LIMIT 1";
 
-        try (Connection conn = DriverManager.getConnection(url);
-             PreparedStatement pstmt = conn.prepareStatement(query)) {
+    try (Connection conn = DriverManager.getConnection(url);
+         PreparedStatement pstmt = conn.prepareStatement(selectSql)) {
 
-            // 1. Fill in the blank with the name the player typed in
-            pstmt.setString(1, searchName);
+        pstmt.setString(1, searchName);
 
-            // 2. Execute the search and get the ResultSet (the reading glasses)
-            ResultSet rs = pstmt.executeQuery();
-
-            // 3. Check if we actually found a row with that name
-            if (rs.next()) {
-                System.out.println("\n--- CHARACTER LOADED SUCCESSFULY ---");
-                
-                // Extracting the data back out of the database!
-                String loadedName = rs.getString("name");
-                String loadedSpecialty = rs.getString("specialty");
-                int loadedLevel = rs.getInt("level");
-                int loadedHp = rs.getInt("hp");
-                String move1 = rs.getString("move1");
-                
-                System.out.println("Welcome back, " + loadedName + " the " + loadedSpecialty + "!");
-                System.out.println("Level: " + loadedLevel + " | HP: " + loadedHp);
-                System.out.println("Primary Move: " + move1);
-                
-            } else {
-                System.out.println("No character found with the name: " + searchName);
+        try (ResultSet rs = pstmt.executeQuery()) {
+            if (!rs.next()) {
+                System.out.println("No saved character named '" + searchName + "' found.");
+                return false;
             }
 
-        } catch (SQLException e) {
-            System.out.println("Error trying to load the character!");
-            e.printStackTrace();
+            // Load basic info
+            Player.name = rs.getString("name");
+            Player.speciality = rs.getString("specialty");
+            Player.ability = rs.getString("ability");
+            Player.xp = rs.getInt("xp");
+
+            // Load stats
+            Player.setPlayerstats.level = rs.getInt("level");
+            Player.setPlayerstats.hp = rs.getInt("hp");
+            Player.setPlayerstats.attack = rs.getInt("attack");
+            Player.setPlayerstats.defense = rs.getInt("defense");
+            Player.setPlayerstats.magicAttack = rs.getInt("magic_attack");
+            Player.setPlayerstats.magicDefense = rs.getInt("magic_defense");
+            Player.setPlayerstats.speed = rs.getInt("speed");
+
+            // Load the 4 moves
+            Moves.selectedMoves = new Moves.Move[] {
+                new Moves.Move(rs.getString("move1")),
+                new Moves.Move(rs.getString("move2")),
+                new Moves.Move(rs.getString("move3")),
+                new Moves.Move(rs.getString("move4"))
+            };
+
+            System.out.println("\nCharacter '" + Player.name + "' loaded successfully!");
+            return true;
         }
+
+    } catch (SQLException e) {
+        System.out.println("Something went wrong loading the character!");
+        e.printStackTrace();
+        return false;
     }
+}
 
     
 }

@@ -7,7 +7,7 @@ public class Main {
         boolean running = true;
 
         while (running) {
-            System.out.println("\n===== RPG SIMULATOR =====");
+            System.out.println("\n===== MYSTIC ARENA =====");
             System.out.println("  1. Create Hero");
             System.out.println("  2. View Hero");
             System.out.println("  3. Gain XP");
@@ -22,14 +22,17 @@ public class Main {
                 case 4 -> {
                     System.out.print("Enter character name to load: ");
                     String loadName = scanner.nextLine();
-                    Database.loadPlayer(loadName);
+                    
+                    if (Database.loadPlayer(loadName)) {
+                        Player.displayPlayerStats(); 
+                    }
                 }
                 case 0 -> running = false;
                 default -> System.out.println("Unknown option.");
                 
             }
         }
-        System.out.println("\nThanks for playing the RPG Simulator. Goodbye!");
+        System.out.println("\nThanks for playing MYSTIC ARENA. Goodbye!");
     }
 
     private static void createHero(Scanner scanner) {
