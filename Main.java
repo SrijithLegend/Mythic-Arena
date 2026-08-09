@@ -22,9 +22,7 @@ public class Main {
                 case 4 -> {
                     System.out.print("Enter character name to load: ");
                     String loadName = scanner.nextLine();
-                    if (Database.loadPlayer(loadName)) {
-                        Player.displayPlayerStats();
-                    }
+                    Database.loadPlayer(loadName);
                 }
                 case 0 -> running = false;
                 default -> System.out.println("Unknown option.");
