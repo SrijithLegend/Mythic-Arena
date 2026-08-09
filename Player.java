@@ -74,10 +74,9 @@ public class Player {
         public static int magicAttack = 0;
         public static int magicDefense = 0;
         public static int speed = 0;
-        public static int ability = 0;
 
         public static int getMaxStatsForLevel() {
-            return 60 + (level - 1) * 10;
+            return 50 + (level - 1) * 10;
         }
 
         public static void setPlayerStats(Scanner scanner) {
@@ -109,10 +108,7 @@ public class Player {
                 speed = getValidStatInput(scanner, "Speed", remaining, 1);
                 remaining -= speed;
 
-                ability = getValidStatInput(scanner, "Ability", remaining, 1);
-                remaining -= ability;
-
-                int totalAllocated = hp + attack + defense + magicAttack + magicDefense + speed + ability;
+                int totalAllocated = hp + attack + defense + magicAttack + magicDefense + speed;
 
                 if (totalAllocated == maxPoints) {
                     validAllocation = true;
@@ -176,10 +172,7 @@ public class Player {
                 int speedGain = getValidStatInput(scanner, "Speed", remaining, 0);
                 remaining -= speedGain;
 
-                int abilityGain = getValidStatInput(scanner, "Ability", remaining, 0);
-                remaining -= abilityGain;
-
-                int totalAllocated = hpGain + attackGain + defenseGain + magicAttackGain + magicDefenseGain + speedGain + abilityGain;
+                int totalAllocated = hpGain + attackGain + defenseGain + magicAttackGain + magicDefenseGain + speedGain;
 
                 if (totalAllocated == newPoints) {
                     hp += hpGain;
@@ -188,7 +181,6 @@ public class Player {
                     magicAttack += magicAttackGain;
                     magicDefense += magicDefenseGain;
                     speed += speedGain;
-                    ability += abilityGain;
                     validAllocation = true;
                     System.out.println("\n✓ Stat points allocated!");
                 } else {
@@ -231,8 +223,7 @@ public class Player {
             }
             int total = Player.setPlayerstats.hp + Player.setPlayerstats.attack
                     + Player.setPlayerstats.defense + Player.setPlayerstats.magicAttack
-                    + Player.setPlayerstats.magicDefense + Player.setPlayerstats.speed
-                    + Player.setPlayerstats.ability;
+                    + Player.setPlayerstats.magicDefense + Player.setPlayerstats.speed;
             int expected = Player.setPlayerstats.getMaxStatsForLevel();
             if (total != expected) {
                 System.out.println("Error: stat points don't add up (" + total + "/" + expected + ").");
@@ -253,7 +244,7 @@ public class Player {
         System.out.println("Magic Attack: " + setPlayerstats.magicAttack);
         System.out.println("Magic Defense: " + setPlayerstats.magicDefense);
         System.out.println("Speed: " + setPlayerstats.speed);
-        System.out.println("Total Stats: " + (setPlayerstats.hp + setPlayerstats.attack + setPlayerstats.defense + setPlayerstats.magicAttack + setPlayerstats.magicDefense + setPlayerstats.speed + setPlayerstats.ability));
+        System.out.println("Total Stats: " + (setPlayerstats.hp + setPlayerstats.attack + setPlayerstats.defense + setPlayerstats.magicAttack + setPlayerstats.magicDefense + setPlayerstats.speed));
         System.out.println("Ability: " + ability);
         System.out.println("Current Moves:");
         if (Moves.selectedMoves != null) {
