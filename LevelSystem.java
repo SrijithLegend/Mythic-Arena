@@ -31,6 +31,33 @@ public class LevelSystem {
 
         checkMoveUnlock(lvl);
         checkUltimateUnlock(lvl);
+
+        autoSave();
+    }
+
+    private static void autoSave() {
+        if (Moves.selectedMoves == null || Moves.selectedMoves.length < 4) {
+            System.out.println("Skipping auto-save: moves not fully set.");
+            return;
+        }
+        Database.savePlayer(
+            Player.name,
+            Player.speciality,
+            Player.setPlayerstats.level,
+            Player.xp,
+            Player.setPlayerstats.hp,
+            Player.setPlayerstats.attack,
+            Player.setPlayerstats.defense,
+            Player.setPlayerstats.magicAttack,
+            Player.setPlayerstats.magicDefense,
+            Player.setPlayerstats.speed,
+            Player.ability,
+            Moves.selectedMoves[0].description(),
+            Moves.selectedMoves[1].description(),
+            Moves.selectedMoves[2].description(),
+            Moves.selectedMoves[3].description()
+        );
+        System.out.println("Progress auto-saved.");
     }
 
     private static void checkMoveUnlock(int level) {

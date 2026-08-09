@@ -20,10 +20,12 @@ public class Main {
                 case 2 -> Player.displayPlayerStats();
                 case 3 -> gainXp(scanner);
                 case 4 -> {
-                System.out.print("Enter character name to load: ");
-                String loadName = scanner.nextLine();
-                Database.loadPlayer(loadName);
-            }
+                    System.out.print("Enter character name to load: ");
+                    String loadName = scanner.nextLine();
+                    if (Database.loadPlayer(loadName)) {
+                        Player.displayPlayerStats();
+                    }
+                }
                 case 0 -> running = false;
                 default -> System.out.println("Unknown option.");
                 
