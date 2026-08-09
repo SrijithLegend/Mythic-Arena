@@ -23,7 +23,7 @@ public class Database {
         try (Connection conn = DriverManager.getConnection(url)) {
             System.out.println("1. Connected to the database!");
 
-            // 2. CREATE THE TABLE
+
             Statement translator = conn.createStatement();
 
             String createTableCommand = 
@@ -49,12 +49,10 @@ public class Database {
             translator.execute(createTableCommand);
             System.out.println("2. Character table is ready!");
 
-            // 4. INSERT THE DATA SAFELY
             String insertSql = "INSERT INTO player_stats (name, specialty, level, xp, hp, attack, defense, magic_attack, magic_defense, speed, ability, move1, move2, move3, move4) " +
                                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
             try (PreparedStatement pstmt = conn.prepareStatement(insertSql)) {
-                // Filling in the 15 blanks
                 pstmt.setString(1, name);
                 pstmt.setString(2, specialty);
                 pstmt.setInt(3, level);
@@ -71,7 +69,7 @@ public class Database {
                 pstmt.setString(14, move3);
                 pstmt.setString(15, move4);
 
-                // Execute the save
+
                 pstmt.executeUpdate();
                 System.out.println("3. Character '" + name + "' saved successfully with all stats and moves!");
             }
@@ -82,61 +80,51 @@ public class Database {
         }
     }
 
-public static boolean loadPlayer(String searchName) {
-    try {
-        Class.forName("org.sqlite.JDBC");
-    } catch (ClassNotFoundException e) {
-        System.out.println("ERROR: driver not found!");
-        return false;
-    }
+    public static boolean loadPlayer(String searchName) {
+        String query = "SELECT * FROM player_stats WHERE name = ?";
+        String url = "jdbc:sqlite:game_data.db";
 
-    String url = "jdbc:sqlite:game_data.db";
-    String selectSql = "SELECT * FROM player_stats WHERE name = ? ORDER BY id DESC LIMIT 1";
+        try (Connection conn = DriverManager.getConnection(url);
+             PreparedStatement pstmt = conn.prepareStatement(query)) {
 
-    try (Connection conn = DriverManager.getConnection(url);
-         PreparedStatement pstmt = conn.prepareStatement(selectSql)) {
+            pstmt.setString(1, searchName);
+            ResultSet rs = pstmt.executeQuery();
 
-        pstmt.setString(1, searchName);
+            if (rs.next()) {
+                System.out.println("\n--- CHARACTER LOADED SUCCESSFULLY ---");
+                
+                String loadedName = rs.getString("name");
+                String loadedSpecialty = rs.getString("specialty");
+                
+                System.out.println("Welcome back, " + loadedName + " the " + loadedSpecialty + "!");
 
-        try (ResultSet rs = pstmt.executeQuery()) {
-            if (!rs.next()) {
-                System.out.println("No saved character named '" + searchName + "' found.");
-                return false;
+                Player.setPlayerstats.level = rs.getInt("level");
+                Player.setPlayerstats.hp = rs.getInt("hp");
+                Player.setPlayerstats.attack = rs.getInt("attack");
+                Player.setPlayerstats.defense = rs.getInt("defense");
+                Player.setPlayerstats.magicAttack = rs.getInt("magic_attack");
+                Player.setPlayerstats.magicDefense = rs.getInt("magic_defense");
+                Player.setPlayerstats.speed = rs.getInt("speed");
+                
+                Moves.selectedMoves = new Moves.Move[4];
+                Moves.selectedMoves[0] = new Moves.Move(rs.getString("move1"));
+                Moves.selectedMoves[1] = new Moves.Move(rs.getString("move2"));
+                Moves.selectedMoves[2] = new Moves.Move(rs.getString("move3"));
+                Moves.selectedMoves[3] = new Moves.Move(rs.getString("move4"));
+
+                return true;
+
+            } else {
+                System.out.println("No character found with the name: " + searchName);
+                return false; 
             }
 
-            // Load basic info
-            Player.name = rs.getString("name");
-            Player.speciality = rs.getString("specialty");
-            Player.ability = rs.getString("ability");
-            Player.xp = rs.getInt("xp");
-
-            // Load stats
-            Player.setPlayerstats.level = rs.getInt("level");
-            Player.setPlayerstats.hp = rs.getInt("hp");
-            Player.setPlayerstats.attack = rs.getInt("attack");
-            Player.setPlayerstats.defense = rs.getInt("defense");
-            Player.setPlayerstats.magicAttack = rs.getInt("magic_attack");
-            Player.setPlayerstats.magicDefense = rs.getInt("magic_defense");
-            Player.setPlayerstats.speed = rs.getInt("speed");
-
-            // Load the 4 moves
-            Moves.selectedMoves = new Moves.Move[] {
-                new Moves.Move(rs.getString("move1")),
-                new Moves.Move(rs.getString("move2")),
-                new Moves.Move(rs.getString("move3")),
-                new Moves.Move(rs.getString("move4"))
-            };
-
-            System.out.println("\nCharacter '" + Player.name + "' loaded successfully!");
-            return true;
+        } catch (SQLException e) {
+            System.out.println("Error trying to load the character!");
+            e.printStackTrace();
+            return false;
         }
-
-    } catch (SQLException e) {
-        System.out.println("Something went wrong loading the character!");
-        e.printStackTrace();
-        return false;
     }
-}
 
     
 }
