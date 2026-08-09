@@ -110,39 +110,41 @@ public class Player {
 
                 int totalAllocated = hp + attack + defense + magicAttack + magicDefense + speed;
 
-                if (totalAllocated == maxPoints) {
+                if (totalAllocated == maxPoints && hp > 0 && attack > 0 && defense > 0 && magicAttack > 0 && magicDefense > 0 && speed > 0) {
                     validAllocation = true;
                     System.out.println("\n✓ Stats successfully set!");
                 } else {
-                    System.out.println("\n[ERROR] You used " + totalAllocated + " out of " + maxPoints + " points.");
-                    System.out.println("You must allocate ALL " + maxPoints + " points. Let's try again.\n");
+                    System.out.println("\n[ERROR] You must allocate exactly " + maxPoints + " points, and EVERY stat must have at least 1 point.");
+                    System.out.println("Let's try again.\n");
                 }
             }
         }
 
         private static int getValidStatInput(Scanner scanner, String statName, int remainingPoints, int minPoints) {
 
-            int input = minPoints - 1;
+                int actualMin = Math.min(minPoints, remainingPoints);
+                
+                int input = actualMin - 1;
 
-            while (input < minPoints || input > remainingPoints) {
-                System.out.printf("Enter %-15s (Points Left: %d, Min: %d): ", statName, remainingPoints, minPoints);
+                while (input < actualMin || input > remainingPoints) {
+                    System.out.printf("Enter %-15s (Points Left: %d, Min: %d): ", statName, remainingPoints, actualMin);
 
-                if (scanner.hasNextInt()) {
-                    input = scanner.nextInt();
-                    scanner.nextLine();
+                    if (scanner.hasNextInt()) {
+                        input = scanner.nextInt();
+                        scanner.nextLine();
 
-                    if (input < minPoints) {
-                        System.out.println("  -> Each stat must have at least " + minPoints + " point(s)!");
-                    } else if (input > remainingPoints) {
-                        System.out.println("  -> You only have " + remainingPoints + " points remaining!");
+                        if (input < actualMin) {
+                            System.out.println("  -> Each stat must have at least " + actualMin + " point(s)!");
+                        } else if (input > remainingPoints) {
+                            System.out.println("  -> You only have " + remainingPoints + " points remaining!");
+                        }
+                    } else {
+                        System.out.println("  -> Invalid input! Please enter a number.");
+                        scanner.nextLine();
                     }
-                } else {
-                    System.out.println("  -> Invalid input! Please enter a number.");
-                    scanner.nextLine();
                 }
+                return input;
             }
-            return input;
-        }
 
         public static void allocateNewPoints(Scanner scanner, int newPoints) {
             boolean validAllocation = false;

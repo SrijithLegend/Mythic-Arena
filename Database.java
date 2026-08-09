@@ -10,14 +10,6 @@ public class Database {
     public static void savePlayer(String name, String specialty, int level, int xp, int hp, int attack, int defense, int magicAttack,
          int magicDefense, int speed, String ability, String move1, String move2, String move3, String move4) {
 
-        try {
-            Class.forName("org.sqlite.JDBC");
-            System.out.println("0. Driver found successfully!");
-        } catch (ClassNotFoundException e) {
-            System.out.println("ERROR: Java still cannot see the .jar file!");
-            return; 
-        }
-
         String url = "jdbc:sqlite:game_data.db";
 
         try (Connection conn = DriverManager.getConnection(url)) {
@@ -80,7 +72,7 @@ public class Database {
         }
     }
 
-    public static boolean loadPlayer(String searchName) {
+public static boolean loadPlayer(String searchName) {
         String query = "SELECT * FROM player_stats WHERE name = ?";
         String url = "jdbc:sqlite:game_data.db";
 
@@ -93,10 +85,12 @@ public class Database {
             if (rs.next()) {
                 System.out.println("\n--- CHARACTER LOADED SUCCESSFULLY ---");
                 
-                String loadedName = rs.getString("name");
-                String loadedSpecialty = rs.getString("specialty");
+                Player.name = rs.getString("name");
+                Player.speciality = rs.getString("specialty");
+                Player.ability = rs.getString("ability");
+                Player.xp = rs.getInt("xp");
                 
-                System.out.println("Welcome back, " + loadedName + " the " + loadedSpecialty + "!");
+                System.out.println("Welcome back, " + Player.name + " the " + Player.speciality + "!");
 
                 Player.setPlayerstats.level = rs.getInt("level");
                 Player.setPlayerstats.hp = rs.getInt("hp");

@@ -1,47 +1,104 @@
 import java.util.Scanner;
 
 public class Character {
+    public int level = 1;
+    public int hp;
+    public int attack;
+    public int defense;
+    public int magicAttack;
+    public int magicDefense;
+    public int speed;
 
-
-        public static String chooseWarriorAbility(Scanner scanner) {
-            String[] warriorOptions = {
-                "Whirlwind Slash : Deal 1.2x attack damage to all enemies. Costs 20% of current HP.",
-                "Shield Bash : Deal 0.8x attack damage + stun opponent for 1 turn (50% hit chance).",
-                "Execute : Deal 2.0x attack damage if opponent is below 30% HP, otherwise 0.5x damage."
-            };
-
-            System.out.println("\n--- Choose Your Ability ---");
-            for (int i = 0; i < warriorOptions.length; i++) {
-                System.out.println((i + 1) + ". " + warriorOptions[i]);
-            }
-
-            int choice = -1;
-            while (choice < 1 || choice > warriorOptions.length) {
-                System.out.print("Enter choice (1-" + warriorOptions.length + "): ");
-                if (scanner.hasNextInt()) {
-                    choice = scanner.nextInt();
-                    scanner.nextLine();
-                    if (choice < 1 || choice > warriorOptions.length) {
-                        System.out.println("Invalid selection.");
-                    }
-                } else {
-                    System.out.println("Invalid input! Please enter a number.");
-                    scanner.nextLine();
-                }
-            }
-
-            String ability = warriorOptions[choice - 1];
-            System.out.println("Ability set to: " + ability + "\n");
-            return ability;
+    private int allocateStat(Scanner scanner, String statName, int pointsLeft) {
+        if (pointsLeft <= 0) {
+            System.out.println("  " + statName + " auto-set to: 0 (Out of points!)");
+            return 0;
         }
 
-        public static String chooseMageAbility(Scanner scanner) {
+        int value = -1;
+        while (true) {
+            System.out.print("Allocate points to " + statName + " (0 to " + pointsLeft + "): ");
+            if (scanner.hasNextInt()) {
+                value = scanner.nextInt();
+                scanner.nextLine();
 
+                if (value >= 0 && value <= pointsLeft) {
+                    break;
+                } else {
+                    System.out.println("Invalid! You must enter a number between 0 and " + pointsLeft + ".");
+                }
+            } else {
+                System.out.println("Invalid input! Please enter a number.");
+                scanner.nextLine();
+            }
+        }
+        return value;
+    }
+
+    public void setPlayerStats(Scanner scanner) {
+        int points = 50;
+        System.out.println("\n--- STAT ALLOCATION ---");
+        System.out.println("You have " + points + " points to distribute.");
+
+        this.hp = allocateStat(scanner, "HP", points);
+        points -= this.hp;
+
+        this.attack = allocateStat(scanner, "Attack", points);
+        points -= this.attack;
+
+        this.defense = allocateStat(scanner, "Defense", points);
+        points -= this.defense;
+
+        this.magicAttack = allocateStat(scanner, "Magic Attack", points);
+        points -= this.magicAttack;
+
+        this.magicDefense = allocateStat(scanner, "Magic Defense", points);
+        points -= this.magicDefense;
+
+        this.speed = allocateStat(scanner, "Speed", points);
+        points -= this.speed;
+
+        System.out.println("\nAll stats successfully allocated!");
+    }
+
+    public static String chooseWarriorAbility(Scanner scanner) {
+        String[] warriorOptions = {
+            "Whirlwind Slash : Deal 1.2x attack damage to all enemies. Costs 20% of current HP.",
+            "Shield Bash : Deal 0.8x attack damage + stun opponent for 1 turn (50% hit chance).",
+            "Execute : Deal 2.0x attack damage if opponent is below 30% HP, otherwise 0.5x damage."
+        };
+
+        System.out.println("\n--- Choose Your Ability ---");
+        for (int i = 0; i < warriorOptions.length; i++) {
+            System.out.println((i + 1) + ". " + warriorOptions[i]);
+        }
+
+        int choice = -1;
+        while (choice < 1 || choice > warriorOptions.length) {
+            System.out.print("Enter choice (1-" + warriorOptions.length + "): ");
+            if (scanner.hasNextInt()) {
+                choice = scanner.nextInt();
+                scanner.nextLine();
+                if (choice < 1 || choice > warriorOptions.length) {
+                    System.out.println("Invalid selection.");
+                }
+            } else {
+                System.out.println("Invalid input! Please enter a number.");
+                scanner.nextLine();
+            }
+        }
+
+        String ability = warriorOptions[choice - 1];
+        System.out.println("Ability set to: " + ability + "\n");
+        return ability;
+    }
+
+    public static String chooseMageAbility(Scanner scanner) {
         String[] mageOptions = {
-                "Fireball : Deal 1.5x magic attack damage to all enemies. Can chain (50% chance to hit same target twice)..", 
-                "Arcane Seal : Reduce opponent's magic attack by 40% for 3 turns. No direct damage; pure utility..", 
-                "Mana Burst : Deal 2.0x magic attack damage. Costs 30% max HP. Resets cooldown if it kills opponent.", 
-            };
+            "Fireball : Deal 1.5x magic attack damage to all enemies. Can chain (50% chance to hit same target twice)..", 
+            "Arcane Seal : Reduce opponent's magic attack by 40% for 3 turns. No direct damage; pure utility..", 
+            "Mana Burst : Deal 2.0x magic attack damage. Costs 30% max HP. Resets cooldown if it kills opponent.", 
+        };
 
         System.out.println("\n--- Choose Your Ability ---");
         for (int i = 0; i < mageOptions.length; i++) {
@@ -71,14 +128,12 @@ public class Character {
         return ability;
     }
 
-
     public static String chooseRogueAbility(Scanner scanner) {
-
         String[] rogueOptions = {
-                "Assassinate : Deal 1.8x attack damage + guaranteed critical (2x multiplier). Only usable if you move first this turn.", 
-                "Evasion Stance : Dodge next incoming attack + gain +30% speed for 2 turns. Defensive pivot.", 
-                "Poison Dart : Deal 0.6x attack damage + apply poison (5% max HP damage per turn for 4 turns). Low burst, high sustained.", 
-            };
+            "Assassinate : Deal 1.8x attack damage + guaranteed critical (2x multiplier). Only usable if you move first this turn.", 
+            "Evasion Stance : Dodge next incoming attack + gain +30% speed for 2 turns. Defensive pivot.", 
+            "Poison Dart : Deal 0.6x attack damage + apply poison (5% max HP damage per turn for 4 turns). Low burst, high sustained.", 
+        };
 
         System.out.println("\n--- Choose Your Ability ---");
         for (int i = 0; i < rogueOptions.length; i++) {
@@ -103,18 +158,17 @@ public class Character {
             }
         }
 
-            String ability = rogueOptions[choice - 1];
-            System.out.println("Ability set to: " + ability + "\n");
-            return ability;
+        String ability = rogueOptions[choice - 1];
+        System.out.println("Ability set to: " + ability + "\n");
+        return ability;
     }   
 
-        public static String choosePaladinAbility(Scanner scanner) {
-
+    public static String choosePaladinAbility(Scanner scanner) {
         String[] paladinOptions = {
-                "Divine Strike : Deal 1.5x attack damage with a 50% chance to heal self for 20% max HP.", 
-                "Blessing of Light : Grant all allies +20% defense for 3 turns. No direct damage; pure support.", 
-                "Judgment : Deal 2.0x attack damage if opponent is below 50% HP, otherwise 1.0x damage. High risk/reward.", 
-            };
+            "Divine Strike : Deal 1.5x attack damage with a 50% chance to heal self for 20% max HP.", 
+            "Blessing of Light : Grant all allies +20% defense for 3 turns. No direct damage; pure support.", 
+            "Judgment : Deal 2.0x attack damage if opponent is below 50% HP, otherwise 1.0x damage. High risk/reward.", 
+        };
 
         System.out.println("\n--- Choose Your Ability ---");
         for (int i = 0; i < paladinOptions.length; i++) {
@@ -143,5 +197,4 @@ public class Character {
         System.out.println("Specialty set to: " + paladinSpeciality + "\n");
         return paladinSpeciality;
     }
-
-}   
+}
