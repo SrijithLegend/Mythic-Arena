@@ -19,6 +19,7 @@ public class Main {
             System.out.println("  3. Gain XP");
             System.out.println("  4. Delete Character");
             System.out.println("  5. View Leaderboard");
+            System.out.println("  6. Enter Multiplayer Arena");
             System.out.println("  0. Exit");
 
             int choice = readInt(scanner, "Your choice: ");
@@ -28,6 +29,7 @@ public class Main {
                 case 3 -> gainXp(scanner);
                 case 4 -> deleteHero(scanner);
                 case 5 -> Database.showLeaderboard();
+                case 6 -> multiplayerArena(scanner);
                 case 0 -> running = false;
                 default -> System.out.println("Unknown option.");
             }
@@ -106,5 +108,46 @@ public class Main {
             }
         }
         return value;
+    }
+
+    // Add this near the bottom of Main.java
+    private static void multiplayerArena(Scanner scanner) {
+        if (Player.name == null) {
+            System.out.println("\n[!] You must Create or Load a hero first before entering the Arena!");
+            return;
+        }
+
+        boolean inArena = true;
+        while (inArena) {
+            System.out.println("\n⚔️ ===== MULTIPLAYER ARENA ===== ⚔️");
+            System.out.println("  1. View Online Fighters (Lobby)");
+            System.out.println("  2. Inspect Fighter Stats");
+            System.out.println("  3. Challenge Fighter");
+            System.out.println("  0. Leave Arena");
+
+            int choice = readInt(scanner, "Your choice: ");
+            switch (choice) {
+                case 1 -> Database.showLeaderboard(); // Reuses your leaderboard code!
+                case 2 -> {
+                    System.out.print("Enter the name of the fighter to inspect: ");
+                    String target = scanner.nextLine();
+                    Database.inspectPlayer(target);
+                }
+                case 3 -> {
+                    System.out.print("Enter the name of the fighter to challenge: ");
+                    String target = scanner.nextLine();
+                    
+                    if (target.equalsIgnoreCase(Player.name)) {
+                        System.out.println("\n[!] You can't challenge yourself!");
+                    } else {
+                        // For now, this is just a placeholder until we build the combat loop
+                        System.out.println("\n🔥 You have challenged " + target + " to a battle! 🔥");
+                        System.out.println("(Battle mechanics linking database opponents coming soon...)");
+                    }
+                }
+                case 0 -> inArena = false;
+                default -> System.out.println("Unknown option.");
+            }
+        }
     }
 }

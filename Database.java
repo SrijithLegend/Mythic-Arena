@@ -224,4 +224,40 @@ public static void deletePlayer(String name) {
         }
     }
     
+    // Add this inside your Database class
+    public static void inspectPlayer(String searchName) {
+        String url = "jdbc:sqlite:game_data.db";
+        // Grab the highest level version of the searched player
+        String query = "SELECT * FROM player_stats WHERE name = ? ORDER BY level DESC LIMIT 1";
+
+        try (Connection conn = DriverManager.getConnection(url);
+             PreparedStatement pstmt = conn.prepareStatement(query)) {
+
+            pstmt.setString(1, searchName);
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                System.out.println("\n🔍 --- SCOUTING REPORT --- 🔍");
+                System.out.println("Name: " + rs.getString("name"));
+                System.out.println("Class: " + rs.getString("specialty") + " (Level " + rs.getInt("level") + ")");
+                System.out.println("HP: " + rs.getInt("hp"));
+                System.out.println("Attack: " + rs.getInt("attack") + " | Defense: " + rs.getInt("defense"));
+                System.out.println("Magic Atk: " + rs.getInt("magic_attack") + " | Magic Def: " + rs.getInt("magic_defense"));
+                System.out.println("Speed: " + rs.getInt("speed"));
+                System.out.println("Ability: " + rs.getString("ability"));
+                System.out.println("Moveset:");
+                System.out.println("  1. " + rs.getString("move1"));
+                System.out.println("  2. " + rs.getString("move2"));
+                System.out.println("  3. " + rs.getString("move3"));
+                System.out.println("  4. " + rs.getString("move4"));
+                System.out.println("----------------------------\n");
+            } else {
+                System.out.println("\n[!] Fighter '" + searchName + "' is not currently in the Arena.");
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Error scouting fighter!");
+            e.printStackTrace();
+        }
+    }
 }
