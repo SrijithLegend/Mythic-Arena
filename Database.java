@@ -190,5 +190,38 @@ public static void deletePlayer(String name) {
         e.printStackTrace();
     }
 }
+
+    public static void showLeaderboard() {
+        String url = "jdbc:sqlite:game_data.db";
+
+        String query = "SELECT name, specialty, MAX(level) as level FROM player_stats GROUP BY name ORDER BY level DESC";
+
+        try (Connection conn = DriverManager.getConnection(url);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(query)) {
+
+            System.out.println("\n=================================");
+            System.out.println("       🏆 LEADERBOARD 🏆         ");
+            System.out.println("=================================");
+            System.out.printf("%-5s %-15s %-15s %-5s\n", "RANK", "NAME", "SPECIALTY", "LEVEL");
+            System.out.println("-------------------------------------------------");
+
+            int rank = 1;
+            while (rs.next()) {
+                String name = rs.getString("name");
+                String specialty = rs.getString("specialty");
+                int level = rs.getInt("level");
+                
+                // Print each row beautifully formatted
+                System.out.printf("%-5d %-15s %-15s Lvl %d\n", rank, name, specialty, level);
+                rank++;
+            }
+            System.out.println("=================================\n");
+
+        } catch (SQLException e) {
+            System.out.println("Error retrieving the leaderboard!");
+            e.printStackTrace();
+        }
+    }
     
 }

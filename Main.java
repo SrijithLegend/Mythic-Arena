@@ -18,6 +18,7 @@ public class Main {
             System.out.println("  2. View Hero");
             System.out.println("  3. Gain XP");
             System.out.println("  4. Delete Character");
+            System.out.println("  5. View Leaderboard");
             System.out.println("  0. Exit");
 
             int choice = readInt(scanner, "Your choice: ");
@@ -26,6 +27,7 @@ public class Main {
                 case 2 -> Player.displayPlayerStats();
                 case 3 -> gainXp(scanner);
                 case 4 -> deleteHero(scanner);
+                case 5 -> Database.showLeaderboard();
                 case 0 -> running = false;
                 default -> System.out.println("Unknown option.");
             }
