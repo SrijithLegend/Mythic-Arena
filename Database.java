@@ -6,6 +6,19 @@ import java.sql.Statement;
 import java.sql.SQLException;
 
 public class Database {
+
+    private static void ensureTableExists(Connection conn) throws SQLException {
+        String createTableCommand =
+            "CREATE TABLE IF NOT EXISTS player_stats (" +
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+            "name TEXT NOT NULL, " +
+            "specialty TEXT, level INTEGER, xp INTEGER, hp INTEGER, attack INTEGER, " +
+            "defense INTEGER, magic_attack INTEGER, magic_defense INTEGER, speed INTEGER, " +
+            "ability TEXT, move1 TEXT, move2 TEXT, move3 TEXT, move4 TEXT);";
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute(createTableCommand);
+        }
+    }
     
     public static void savePlayer(String name, String specialty, int level, int xp, int hp, int attack, int defense, int magicAttack,
          int magicDefense, int speed, String ability, String move1, String move2, String move3, String move4) {
@@ -120,5 +133,62 @@ public static boolean loadPlayer(String searchName) {
         }
     }
 
+    public static boolean loadLatestPlayer() {
+    try { Class.forName("org.sqlite.JDBC"); }
+    catch (ClassNotFoundException e) { return false; }
+
+    String url = "jdbc:sqlite:game_data.db";
+    try (Connection conn = DriverManager.getConnection(url)) {
+        ensureTableExists(conn);
+        String selectSql = "SELECT * FROM player_stats ORDER BY id DESC LIMIT 1";
+        try (PreparedStatement pstmt = conn.prepareStatement(selectSql);
+             ResultSet rs = pstmt.executeQuery()) {
+
+            if (!rs.next()) return false; // no save exists yet — normal on first run
+
+            Player.name = rs.getString("name");
+            Player.speciality = rs.getString("specialty");
+            Player.setPlayerstats.level = rs.getInt("level");
+            Player.xp = rs.getInt("xp");
+            Player.setPlayerstats.hp = rs.getInt("hp");
+            Player.setPlayerstats.attack = rs.getInt("attack");
+            Player.setPlayerstats.defense = rs.getInt("defense");
+            Player.setPlayerstats.magicAttack = rs.getInt("magic_attack");
+            Player.setPlayerstats.magicDefense = rs.getInt("magic_defense");
+            Player.setPlayerstats.speed = rs.getInt("speed");
+            Player.ability = rs.getString("ability");
+            Moves.selectedMoves = new Moves.Move[] {
+                new Moves.Move(rs.getString("move1")), new Moves.Move(rs.getString("move2")),
+                new Moves.Move(rs.getString("move3")), new Moves.Move(rs.getString("move4"))
+            };
+            return true;
+        }
+    } catch (SQLException e) {
+        System.out.println("Something went wrong loading saved data!");
+        e.printStackTrace();
+        return false;
+    }
+}
+
+public static void deletePlayer(String name) {
+    try { Class.forName("org.sqlite.JDBC"); }
+    catch (ClassNotFoundException e) { return; }
+
+    String url = "jdbc:sqlite:game_data.db";
+    try (Connection conn = DriverManager.getConnection(url)) {
+        ensureTableExists(conn);
+        String deleteSql = "DELETE FROM player_stats WHERE name = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(deleteSql)) {
+            pstmt.setString(1, name);
+            int rows = pstmt.executeUpdate();
+            System.out.println(rows > 0
+                ? "Deleted " + rows + " save record(s) for '" + name + "'."
+                : "No saved character named '" + name + "' found.");
+        }
+    } catch (SQLException e) {
+        System.out.println("Something went wrong deleting the character!");
+        e.printStackTrace();
+    }
+}
     
 }

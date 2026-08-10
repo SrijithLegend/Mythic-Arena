@@ -6,12 +6,18 @@ public class Main {
         Scanner scanner = new Scanner(System.in);
         boolean running = true;
 
+        if (Database.loadLatestPlayer()) {
+            System.out.println("\nWelcome back, " + Player.name + "!");
+        } else {
+            System.out.println("\nNo saved character found. Choose 'Create Hero' to begin.");
+        }
+
         while (running) {
             System.out.println("\n===== MYSTIC ARENA =====");
             System.out.println("  1. Create Hero");
             System.out.println("  2. View Hero");
             System.out.println("  3. Gain XP");
-            System.out.println("  4. Load Game");
+            System.out.println("  4. Delete Character");
             System.out.println("  0. Exit");
 
             int choice = readInt(scanner, "Your choice: ");
@@ -19,14 +25,7 @@ public class Main {
                 case 1 -> createHero(scanner);
                 case 2 -> Player.displayPlayerStats();
                 case 3 -> gainXp(scanner);
-                case 4 -> {
-                    System.out.print("Enter character name to load: ");
-                    String loadName = scanner.nextLine();
-                    
-                    if (Database.loadPlayer(loadName)) {
-                        Player.displayPlayerStats(); 
-                    }
-                }
+                case 4 -> deleteHero(scanner);
                 case 0 -> running = false;
                 default -> System.out.println("Unknown option.");
             }
@@ -34,6 +33,21 @@ public class Main {
         System.out.println("\nThanks for playing MYSTIC ARENA. Goodbye!");
     }
 
+    private static void deleteHero(Scanner scanner) {
+        if (Player.name == null) {
+            System.out.println("No character to delete.");
+            return;
+        }
+        System.out.print("Type your character's name (" + Player.name + ") to confirm deletion: ");
+        String confirm = scanner.nextLine();
+        if (!confirm.equals(Player.name)) {
+            System.out.println("Name doesn't match. Deletion cancelled.");
+            return;
+        }
+        Database.deletePlayer(Player.name);
+        Player.resetPlayer();
+        System.out.println("Character deleted.");
+    }
     private static void createHero(Scanner scanner) {
         Player.setPlayerName(scanner);
         Player.setPlayerSpeciality(scanner);

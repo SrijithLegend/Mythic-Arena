@@ -237,6 +237,10 @@ public class Player {
     public static void displayPlayerStats() {
         System.out.println("\n--- PLAYER STATS ---");
         System.out.println("Name: " + name);
+        if (name == null) {
+                System.out.println("\nNo hero exists yet. Choose 'Create Hero' first.");
+                return;
+            }
         System.out.println("Specialty: " + speciality);
         System.out.println("Level: " + setPlayerstats.level);
         System.out.println("XP: " + xp + " / " + LevelSystem.xpForLevel(setPlayerstats.level));
@@ -257,4 +261,21 @@ public class Player {
             System.out.println("  (none selected)");
         }
     }
+
+    public static void resetPlayer() {
+    name = null;
+    speciality = null;
+    ability = null;
+    xp = 0;
+    unlockedMoves.clear();
+    unlockedUltimates.clear();
+    setPlayerstats.level = 1;
+    setPlayerstats.hp = 0;
+    setPlayerstats.attack = 0;
+    setPlayerstats.defense = 0;
+    setPlayerstats.magicAttack = 0;
+    setPlayerstats.magicDefense = 0;
+    setPlayerstats.speed = 0;
+    Moves.selectedMoves = null;
+}
 }

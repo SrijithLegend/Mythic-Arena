@@ -1,65 +1,6 @@
 import java.util.Scanner;
 
 public class Character {
-    public int level = 1;
-    public int hp;
-    public int attack;
-    public int defense;
-    public int magicAttack;
-    public int magicDefense;
-    public int speed;
-
-    private int allocateStat(Scanner scanner, String statName, int pointsLeft) {
-        if (pointsLeft <= 0) {
-            System.out.println("  " + statName + " auto-set to: 0 (Out of points!)");
-            return 0;
-        }
-
-        int value = -1;
-        while (true) {
-            System.out.print("Allocate points to " + statName + " (0 to " + pointsLeft + "): ");
-            if (scanner.hasNextInt()) {
-                value = scanner.nextInt();
-                scanner.nextLine();
-
-                if (value >= 0 && value <= pointsLeft) {
-                    break;
-                } else {
-                    System.out.println("Invalid! You must enter a number between 0 and " + pointsLeft + ".");
-                }
-            } else {
-                System.out.println("Invalid input! Please enter a number.");
-                scanner.nextLine();
-            }
-        }
-        return value;
-    }
-
-    public void setPlayerStats(Scanner scanner) {
-        int points = 50;
-        System.out.println("\n--- STAT ALLOCATION ---");
-        System.out.println("You have " + points + " points to distribute.");
-
-        this.hp = allocateStat(scanner, "HP", points);
-        points -= this.hp;
-
-        this.attack = allocateStat(scanner, "Attack", points);
-        points -= this.attack;
-
-        this.defense = allocateStat(scanner, "Defense", points);
-        points -= this.defense;
-
-        this.magicAttack = allocateStat(scanner, "Magic Attack", points);
-        points -= this.magicAttack;
-
-        this.magicDefense = allocateStat(scanner, "Magic Defense", points);
-        points -= this.magicDefense;
-
-        this.speed = allocateStat(scanner, "Speed", points);
-        points -= this.speed;
-
-        System.out.println("\nAll stats successfully allocated!");
-    }
 
     public static String chooseWarriorAbility(Scanner scanner) {
         String[] warriorOptions = {
@@ -193,8 +134,8 @@ public class Character {
             }
         }
 
-        String paladinSpeciality = paladinOptions[choice - 1];
-        System.out.println("Specialty set to: " + paladinSpeciality + "\n");
-        return paladinSpeciality;
+        String paladinAbility = paladinOptions[choice - 1];
+        System.out.println("Ability set to: " + paladinAbility + "\n");
+        return paladinAbility;
     }
 }
