@@ -30,6 +30,7 @@ sizing can crash on machines with little free memory.
 - **Shop**: Health Potions (up to 2 per battle) and a Scroll of Respec.
 - **Leaderboard and battle history**: everything is recorded in the database.
 - 8 arena bots are created on first launch, so the arena is never empty.
+- **Passwords**: every hero has one. You need it to load the hero at startup, switch to it, delete it, or play it as Player 2 in a duel. Ranked challenges against a hero don't need its password, because the defender is played by the AI. Three wrong tries cancels the attempt. Heroes saved before passwords existed are asked to set one the first time they log in. Change it under *Manage Hero*.
 
 ## Code layout
 
@@ -43,12 +44,13 @@ sizing can crash on machines with little free memory.
 | `Player.java` | Hero model, stat allocation, display |
 | `LevelSystem.java` | XP curve, rewards, level-ups and unlocks |
 | `Database.java` | All JDBC access: schema, saves, queries, migration, bot seeding |
+| `Auth.java` | Password hashing (salted PBKDF2-SHA256), login and password prompts |
 | `Input.java` | Validated console input |
 | `tests/SelfTest.java` | Database, migration, balance and battle self-test |
 
 ## Database schema
 
-- `players`: one row per hero. `name` is unique (case-insensitive). The table holds stats, moves, wins/losses, rating, gold, potions, `is_bot`, `created_at` and `last_played`.
+- `players`: one row per hero. `name` is unique (case-insensitive). The table holds stats, moves, wins/losses, rating, gold, potions, `is_bot`, `password_hash` (salted PBKDF2, never the plain password), `created_at` and `last_played`.
 - `battles`: one row per battle, with mode, both names, winner, number of turns, XP gained and rating change.
 
 Saves from older versions (the `player_stats` table, which added a new row on every save) are migrated automatically on first launch. The newest row for each hero is kept, and the old table is renamed to `legacy_player_stats`.

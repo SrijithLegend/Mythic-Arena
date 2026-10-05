@@ -22,14 +22,19 @@ public class Main {
         System.out.println("           M Y S T I C   A R E N A");
         System.out.println("  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 
-        hero = Database.loadLastPlayed();
-        if (hero != null) {
-            System.out.println("\nWelcome back, " + hero.name + " the " + hero.speciality + "!");
-        } else {
-            System.out.println("\nNo saved hero found. Choose 'Create New Hero' to begin.");
-        }
-
         try {
+            Player last = Database.loadLastPlayed();
+            if (last == null) {
+                System.out.println("\nNo saved hero found. Choose 'Create New Hero' to begin.");
+            } else {
+                System.out.println("\nLast played: " + last.name + " the " + last.speciality);
+                if (Auth.login(scanner, last)) {
+                    hero = last;
+                    System.out.println("Welcome back, " + hero.name + "!");
+                } else {
+                    System.out.println("Not logged in. Use 'Switch Hero' or 'Create New Hero'.");
+                }
+            }
             mainMenu(scanner);
         } catch (Input.InputClosedException e) {
             System.out.println("\nInput closed.");
@@ -49,7 +54,7 @@ public class Main {
             System.out.println("  3. View Hero");
             System.out.println("  4. Training Grounds (PvE)");
             System.out.println("  5. Multiplayer Arena (PvP)");
-            System.out.println("  6. Manage Moves & Ability");
+            System.out.println("  6. Manage Hero (moves, ability, password)");
             System.out.println("  7. Shop");
             System.out.println("  8. Battle History");
             System.out.println("  9. Leaderboard");
@@ -70,7 +75,7 @@ public class Main {
                 case 3 -> hero.display();
                 case 4 -> Arena.training(scanner, hero);
                 case 5 -> Arena.lobby(scanner, hero);
-                case 6 -> manageMoves(scanner);
+                case 6 -> manageHero(scanner);
                 case 7 -> shop(scanner);
                 case 8 -> Database.showHistory(hero.name, 15);
                 case 9 -> Database.showLeaderboard();
@@ -82,8 +87,9 @@ public class Main {
     private static void createHero(Scanner scanner) {
         Player created = Player.createInteractive(scanner);
         if (created == null) return;
+        String passwordHash = Auth.createPassword(scanner, created.name);
         created.display();
-        if (Database.savePlayer(created)) {
+        if (Database.savePlayer(created) && Database.setPasswordHash(created.name, passwordHash)) {
             hero = created;
             System.out.println("\n" + hero.name + " has entered the world and is saved to the database!");
         }
@@ -103,21 +109,30 @@ public class Main {
         }
         int choice = Input.readInt(scanner, "Load which hero? (0 to cancel): ", 0, heroes.size());
         if (choice == 0) return;
+        Player chosen = heroes.get(choice - 1);
+        if (hero != null && chosen.name.equalsIgnoreCase(hero.name)) {
+            System.out.println("\n" + hero.name + " is already loaded.");
+            return;
+        }
+        if (!Auth.login(scanner, chosen)) {
+            System.out.println("Could not log in as " + chosen.name + ".");
+            return;
+        }
         if (hero != null) Database.savePlayer(hero);
-        hero = heroes.get(choice - 1);
+        hero = chosen;
         Database.savePlayer(hero); // marks it as the most recently played
         System.out.println("\nLoaded " + hero.name + " the " + hero.speciality + ". Welcome back!");
     }
 
-    private static void manageMoves(Scanner scanner) {
+    private static void manageHero(Scanner scanner) {
         System.out.println("\nCurrent moves:");
         for (int i = 0; i < hero.moves.length; i++) {
             System.out.println("  " + (i + 1) + ". " + hero.moves[i].description());
         }
         System.out.println("Signature ability: " + hero.ability);
 
-        String[] options = {"Change moves", "Change signature ability", "Back"};
-        switch (Input.choose(scanner, "Manage Moves", options)) {
+        String[] options = {"Change moves", "Change signature ability", "Change password", "Back"};
+        switch (Input.choose(scanner, "Manage Hero", options)) {
             case 0 -> {
                 hero.moves = Moves.chooseMoves(scanner, hero.speciality, hero.level);
                 Database.savePlayer(hero);
@@ -128,6 +143,7 @@ public class Main {
                 Database.savePlayer(hero);
                 System.out.println("Ability saved.");
             }
+            case 2 -> Auth.changePassword(scanner, hero);
             default -> { }
         }
     }
@@ -165,15 +181,18 @@ public class Main {
     }
 
     private static void deleteHero(Scanner scanner) {
-        String confirm = Input.readLine(scanner, "Type your hero's name (" + hero.name + ") to confirm PERMANENT deletion: ");
-        if (!confirm.equals(hero.name)) {
-            System.out.println("Name doesn't match. Deletion cancelled.");
+        if (!Input.confirm(scanner, "PERMANENTLY delete " + hero.name + "?")) {
+            System.out.println("Deletion cancelled.");
+            return;
+        }
+        System.out.println("Enter the password to confirm.");
+        if (!Auth.login(scanner, hero)) {
+            System.out.println("Deletion cancelled.");
             return;
         }
         if (Database.deletePlayer(hero.name)) {
             System.out.println(hero.name + " has been deleted.");
-            hero = Database.loadLastPlayed();
-            if (hero != null) System.out.println("Switched to " + hero.name + ".");
+            hero = null;
         }
     }
 }

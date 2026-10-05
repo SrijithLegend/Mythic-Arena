@@ -151,6 +151,11 @@ public class Arena {
         System.out.println("\nPlayer 2, pick your hero:");
         Player rival = pickOpponent(scanner, others);
         if (rival == null) return;
+        System.out.println("Player 2 must log in as " + rival.name + ".");
+        if (!Auth.login(scanner, rival)) {
+            System.out.println("Duel cancelled.");
+            return;
+        }
 
         System.out.println("\nLOCAL DUEL: " + hero.name + " (Player 1) vs " + rival.name + " (Player 2)");
         Combat.Result result = Combat.fight(scanner, hero, true, rival, true, true, RNG);

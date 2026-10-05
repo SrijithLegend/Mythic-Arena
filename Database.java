@@ -44,6 +44,7 @@ public class Database {
                 "gold INTEGER NOT NULL DEFAULT " + Player.STARTING_GOLD + ", " +
                 "potions INTEGER NOT NULL DEFAULT " + Player.STARTING_POTIONS + ", " +
                 "is_bot INTEGER NOT NULL DEFAULT 0, " +
+                "password_hash TEXT, " +
                 "created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')), " +
                 "last_played TEXT NOT NULL DEFAULT (datetime('now','localtime')))");
             stmt.execute(
@@ -60,6 +61,7 @@ public class Database {
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_battles_player ON battles(player_name)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_battles_opponent ON battles(opponent_name)");
 
+            addColumnIfMissing(conn, "players", "password_hash", "TEXT");
             migrateLegacy(conn);
             seedBots(conn);
         } catch (SQLException e) {
@@ -122,6 +124,18 @@ public class Database {
         }
         if (migrated > 0) {
             System.out.println("[DB] Migrated " + migrated + " hero(es) from the old save format.");
+        }
+    }
+
+    /** Lets databases created by older versions pick up new columns. */
+    private static void addColumnIfMissing(Connection conn, String table, String column, String type) throws SQLException {
+        try (Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery("PRAGMA table_info(" + table + ")")) {
+            while (rs.next()) {
+                if (rs.getString("name").equalsIgnoreCase(column)) return;
+            }
+        }
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + type);
         }
     }
 
@@ -327,6 +341,35 @@ public class Database {
             while (rs.next()) list.add(fromRow(rs));
         }
         return list;
+    }
+
+    /**
+     * The stored password hash, or null if the hero has none (saved before passwords existed).
+     * On a database error returns "" which never verifies, so errors can't bypass the check.
+     */
+    public static String getPasswordHash(String name) {
+        try (Connection conn = connect();
+             PreparedStatement ps = conn.prepareStatement("SELECT password_hash FROM players WHERE name = ?")) {
+            ps.setString(1, name);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getString(1) : null;
+            }
+        } catch (SQLException e) {
+            System.out.println("[!] Error reading password: " + e.getMessage());
+            return "";
+        }
+    }
+
+    public static boolean setPasswordHash(String name, String hash) {
+        try (Connection conn = connect();
+             PreparedStatement ps = conn.prepareStatement("UPDATE players SET password_hash = ? WHERE name = ?")) {
+            ps.setString(1, hash);
+            ps.setString(2, name);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.out.println("[!] Could not save password: " + e.getMessage());
+            return false;
+        }
     }
 
     public static boolean deletePlayer(String name) {

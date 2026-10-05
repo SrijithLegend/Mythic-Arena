@@ -25,6 +25,7 @@ public class SelfTest {
         testSaveLoadUpsertDelete();
         testStatBuilds();
         testElo();
+        testPasswords();
         testLevelSystem();
         testBattles();
         testHistoryAndLeaderboard();
@@ -40,6 +41,15 @@ public class SelfTest {
 
     private static void testLegacyMigration() throws Exception {
         try (Connection c = Database.connect(); Statement s = c.createStatement()) {
+            // A players table as created by the version before passwords existed.
+            s.execute("CREATE TABLE players (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE COLLATE NOCASE, " +
+                "specialty TEXT NOT NULL, level INTEGER NOT NULL DEFAULT 1, xp INTEGER NOT NULL DEFAULT 0, hp INTEGER NOT NULL, " +
+                "attack INTEGER NOT NULL, defense INTEGER NOT NULL, magic_attack INTEGER NOT NULL, magic_defense INTEGER NOT NULL, " +
+                "speed INTEGER NOT NULL, ability TEXT NOT NULL, move1 TEXT NOT NULL, move2 TEXT NOT NULL, move3 TEXT NOT NULL, " +
+                "move4 TEXT NOT NULL, wins INTEGER NOT NULL DEFAULT 0, losses INTEGER NOT NULL DEFAULT 0, " +
+                "rating INTEGER NOT NULL DEFAULT 1000, gold INTEGER NOT NULL DEFAULT 50, potions INTEGER NOT NULL DEFAULT 2, " +
+                "is_bot INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')), " +
+                "last_played TEXT NOT NULL DEFAULT (datetime('now','localtime')))");
             s.execute("CREATE TABLE player_stats (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, specialty TEXT, " +
                 "level INTEGER, xp INTEGER, hp INTEGER, attack INTEGER, defense INTEGER, magic_attack INTEGER, " +
                 "magic_defense INTEGER, speed INTEGER, ability TEXT, move1 TEXT, move2 TEXT, move3 TEXT, move4 TEXT)");
@@ -55,6 +65,7 @@ public class SelfTest {
         check(oldie.level == 23 && oldie.xp == 3987, "newest legacy row kept");
         check(oldie.moves[1].name().equals("Judgment") && oldie.ability.equals("Divine Strike"), "legacy move/ability strings parsed");
         check(oldie.isValid(), "migrated hero valid");
+        check(Database.getPasswordHash("Oldie") == null, "password column added to old table; migrated hero has no password yet");
 
         Player broken = Database.loadPlayer("Broken");
         check(broken != null && broken.isValid(), "broken legacy row repaired into a valid hero");
@@ -127,6 +138,26 @@ public class SelfTest {
             for (int v : levelUp) sum += v;
             check(sum == LevelSystem.STAT_POINTS_PER_LEVEL, "level-up build spends exactly 10");
         }
+    }
+
+    private static void testPasswords() {
+        String h1 = Auth.hash("dragon42"), h2 = Auth.hash("dragon42");
+        check(!h1.contains("dragon42"), "hash does not contain the password");
+        check(!h1.equals(h2), "each hash gets its own salt");
+        check(Auth.verify("dragon42", h1) && Auth.verify("dragon42", h2), "correct password verifies");
+        check(!Auth.verify("Dragon42", h1) && !Auth.verify("", h1), "wrong password rejected");
+        check(!Auth.verify("x", "") && !Auth.verify("x", null) && !Auth.verify("x", "garbage$1$2"), "malformed hashes never verify");
+
+        Player p = Database.makeBot("Locked", "Mage", 1);
+        p.bot = false;
+        Database.savePlayer(p);
+        check(Database.getPasswordHash("Locked") == null, "new row starts without a password");
+        check(Database.setPasswordHash("Locked", h1), "password saved");
+        p.gold = 999;
+        Database.savePlayer(p);
+        check(Auth.verify("dragon42", Database.getPasswordHash("LOCKED")), "password survives later saves");
+        check(!Database.setPasswordHash("Nobody Here", h1), "setting a password for a missing hero fails");
+        Database.deletePlayer("Locked");
     }
 
     private static void testElo() {
