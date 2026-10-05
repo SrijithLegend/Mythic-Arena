@@ -1,281 +1,191 @@
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Scanner;
 
+/** A hero stored in the database: either a real player or an arena bot. */
 public class Player {
 
-    public static String name;
+    public static final String[] STAT_NAMES = {"HP", "Attack", "Defense", "Magic Attack", "Magic Defense", "Speed"};
+    public static final int STARTING_RATING = 1000;
+    public static final int STARTING_GOLD = 50;
+    public static final int STARTING_POTIONS = 2;
 
-    public static String speciality;
+    public String name;
+    public String speciality;
+    public String ability;
 
-    public static String ability;
+    public int level = 1;
+    public int xp = 0;
 
+    public int hp, attack, defense, magicAttack, magicDefense, speed;
 
-    public static int xp = 0;
-    public static List<String> unlockedMoves = new ArrayList<>();
-    public static List<String> unlockedUltimates = new ArrayList<>();
+    public Moves.Move[] moves;
 
-    public static void setPlayerName(Scanner scanner) {
-        System.out.print("What is your name? ");
-        name = scanner.nextLine();
+    public int wins = 0, losses = 0;
+    public int rating = STARTING_RATING;
+    public int gold = STARTING_GOLD;
+    public int potions = STARTING_POTIONS;
+    public boolean bot = false;
+
+    public static int statPointsForLevel(int level) {
+        return 50 + (level - 1) * LevelSystem.STAT_POINTS_PER_LEVEL;
     }
 
-    public static void setPlayerSpeciality(Scanner scanner) {
+    public int[] stats() {
+        return new int[] {hp, attack, defense, magicAttack, magicDefense, speed};
+    }
 
-        String[] options = {"Warrior", "Mage", "Rogue", "Paladin"};
+    public void setStats(int[] s) {
+        hp = s[0]; attack = s[1]; defense = s[2]; magicAttack = s[3]; magicDefense = s[4]; speed = s[5];
+    }
 
-        System.out.println("\n--- Choose Your Specialty ---");
-        for (int i = 0; i < options.length; i++) {
-            System.out.println((i + 1) + ". " + options[i]);
+    public int totalStats() {
+        int total = 0;
+        for (int s : stats()) total += s;
+        return total;
+    }
+
+    /** Battle HP derived from the HP stat. */
+    public int maxBattleHp() {
+        return 60 + hp * 9 + level * 12;
+    }
+
+    // ------------------------------------------------------------------ creation
+
+    public static Player createInteractive(Scanner scanner) {
+        Player p = new Player();
+        p.name = chooseName(scanner);
+        if (p.name == null) return null;
+
+        int spec = Input.choose(scanner, "Choose Your Specialty", Character.SPECIALTY_BLURBS);
+        p.speciality = Character.SPECIALTIES[spec];
+        System.out.println("Specialty set to: " + p.speciality);
+
+        p.ability = Character.chooseAbility(scanner, p.speciality);
+        p.moves = Moves.chooseMoves(scanner, p.speciality, p.level);
+
+        int[] base = new int[STAT_NAMES.length];
+        p.setStats(p.spendPoints(scanner, base, statPointsForLevel(1), 1));
+
+        if (!p.isValid()) {
+            System.out.println("Hero creation failed validation. Try again.");
+            return null;
         }
+        return p;
+    }
 
-        int choice = -1;
-
-        while (choice < 1 || choice > options.length) {
-            System.out.print("Enter choice (1-" + options.length + "): ");
-
-            if (scanner.hasNextInt()) {
-                choice = scanner.nextInt();
-                scanner.nextLine(); 
-
-                if (choice < 1 || choice > options.length) {
-                    System.out.println("Invalid selection. Please choose between 1 and " + options.length + ".");
-                }
+    private static String chooseName(Scanner scanner) {
+        while (true) {
+            String name = Input.readLine(scanner, "What is your hero's name? (blank to cancel) ");
+            if (name.isEmpty()) return null;
+            if (!name.matches("[A-Za-z0-9 _'-]{2,16}")) {
+                System.out.println("  -> Names must be 2-16 characters (letters, numbers, spaces, _ ' -).");
+            } else if (Database.nameExists(name)) {
+                System.out.println("  -> A hero named '" + name + "' already exists. Pick another name.");
             } else {
-                System.out.println("Invalid input! Please enter a number.");
-                scanner.nextLine(); 
+                return name;
             }
         }
-
-        speciality = options[choice - 1];
-        System.out.println("Specialty set to: " + speciality + "\n");
     }
 
-    public static void setPlayerAbility(Scanner scanner) {
-    if (speciality == null) {
-        System.out.println("Please set your specialty first.");
-        return;
+    /**
+     * Distributes points on top of the given base stats, either automatically using the
+     * class's recommended build or manually. Returns the new stat array.
+     */
+    public int[] spendPoints(Scanner scanner, int[] base, int points, int minEach) {
+        String[] options = {"Use the recommended " + speciality + " build", "Allocate manually"};
+        int choice = Input.choose(scanner, "Spend " + points + " Stat Points", options);
+        int[] gains = choice == 0
+            ? buildGains(Character.recommendedBuild(speciality), points, minEach)
+            : allocateManually(scanner, points, minEach);
+
+        int[] result = new int[base.length];
+        for (int i = 0; i < base.length; i++) result[i] = base[i] + gains[i];
+        System.out.println("\nStat points allocated!");
+        return result;
     }
-    switch (speciality) {
-        case "Warrior" -> ability = Character.chooseWarriorAbility(scanner);
-        case "Mage" -> ability = Character.chooseMageAbility(scanner);
-        case "Rogue" -> ability = Character.chooseRogueAbility(scanner);
-        case "Paladin" -> ability = Character.choosePaladinAbility(scanner);
-    }
-}
 
-    public static class setPlayerstats {
-
-        public static int level = 1;
-        
-        public static int hp = 0;
-        public static int attack = 0;
-        public static int defense = 0;
-        public static int magicAttack = 0;
-        public static int magicDefense = 0;
-        public static int speed = 0;
-
-        public static int getMaxStatsForLevel() {
-            return 50 + (level - 1) * 10;
+    /** Splits points by percentage weights, guaranteeing minEach per stat and an exact total. */
+    public static int[] buildGains(int[] weights, int points, int minEach) {
+        int[] gains = new int[weights.length];
+        int spent = 0;
+        for (int i = 0; i < weights.length; i++) {
+            gains[i] = Math.max(minEach, points * weights[i] / 100);
+            spent += gains[i];
         }
+        // Fix rounding: hand leftovers to the heaviest-weighted stats, or take back from them.
+        int i = 0;
+        while (spent != points) {
+            int idx = heaviest(weights, i++ % weights.length);
+            if (spent < points) {
+                gains[idx]++;
+                spent++;
+            } else if (gains[idx] > minEach) {
+                gains[idx]--;
+                spent--;
+            }
+        }
+        return gains;
+    }
 
-        public static void setPlayerStats(Scanner scanner) {
-            int maxPoints = getMaxStatsForLevel();
-            boolean validAllocation = false;
+    private static int heaviest(int[] weights, int rank) {
+        Integer[] order = new Integer[weights.length];
+        for (int i = 0; i < order.length; i++) order[i] = i;
+        java.util.Arrays.sort(order, (a, b) -> weights[b] - weights[a]);
+        return order[rank];
+    }
 
-            while (!validAllocation) {
-                int remaining = maxPoints;
-                System.out.println("\n=================================");
-                System.out.println("        ALLOCATE YOUR STATS      ");
-                System.out.println("=================================");
-                System.out.println("Level: " + level + " | Available Points: " + maxPoints + "\n");
-
-                hp = getValidStatInput(scanner, "HP", remaining, 1);
-                remaining -= hp;
-
-                attack = getValidStatInput(scanner, "Attack", remaining, 1);
-                remaining -= attack;
-
-                defense = getValidStatInput(scanner, "Defense", remaining, 1);
-                remaining -= defense;
-
-                magicAttack = getValidStatInput(scanner, "Magic Attack", remaining, 1);
-                remaining -= magicAttack;
-
-                magicDefense = getValidStatInput(scanner, "Magic Defense", remaining, 1);
-                remaining -= magicDefense;
-
-                speed = getValidStatInput(scanner, "Speed", remaining, 1);
-                remaining -= speed;
-
-                int totalAllocated = hp + attack + defense + magicAttack + magicDefense + speed;
-
-                if (totalAllocated == maxPoints && hp > 0 && attack > 0 && defense > 0 && magicAttack > 0 && magicDefense > 0 && speed > 0) {
-                    validAllocation = true;
-                    System.out.println("\n✓ Stats successfully set!");
+    private static int[] allocateManually(Scanner scanner, int points, int minEach) {
+        while (true) {
+            int[] gains = new int[STAT_NAMES.length];
+            int remaining = points;
+            System.out.println("\nPoints to spend: " + points + (minEach > 0 ? " (every stat needs at least " + minEach + ")" : ""));
+            for (int i = 0; i < STAT_NAMES.length; i++) {
+                int statsLeft = STAT_NAMES.length - i - 1;
+                int max = remaining - statsLeft * minEach;
+                if (i == STAT_NAMES.length - 1) {
+                    gains[i] = remaining;
+                    System.out.println(String.format("%-15s gets the remaining %d point(s).", STAT_NAMES[i], remaining));
                 } else {
-                    System.out.println("\n[ERROR] You must allocate exactly " + maxPoints + " points, and EVERY stat must have at least 1 point.");
-                    System.out.println("Let's try again.\n");
+                    String prompt = String.format("Enter %-15s (Points Left: %d, %d-%d): ", STAT_NAMES[i], remaining, minEach, max);
+                    gains[i] = Input.readInt(scanner, prompt, minEach, max);
                 }
+                remaining -= gains[i];
             }
-        }
-
-        private static int getValidStatInput(Scanner scanner, String statName, int remainingPoints, int minPoints) {
-
-                int actualMin = Math.min(minPoints, remainingPoints);
-                
-                int input = actualMin - 1;
-
-                while (input < actualMin || input > remainingPoints) {
-                    System.out.printf("Enter %-15s (Points Left: %d, Min: %d): ", statName, remainingPoints, actualMin);
-
-                    if (scanner.hasNextInt()) {
-                        input = scanner.nextInt();
-                        scanner.nextLine();
-
-                        if (input < actualMin) {
-                            System.out.println("  -> Each stat must have at least " + actualMin + " point(s)!");
-                        } else if (input > remainingPoints) {
-                            System.out.println("  -> You only have " + remainingPoints + " points remaining!");
-                        }
-                    } else {
-                        System.out.println("  -> Invalid input! Please enter a number.");
-                        scanner.nextLine();
-                    }
-                }
-                return input;
-            }
-
-        public static void allocateNewPoints(Scanner scanner, int newPoints) {
-            boolean validAllocation = false;
-
-            while (!validAllocation) {
-                int remaining = newPoints;
-                System.out.println("\n=================================");
-                System.out.println("      ALLOCATE NEW STAT POINTS   ");
-                System.out.println("=================================");
-                System.out.println("Level: " + level + " | New Points to Spend: " + newPoints + "\n");
-
-                int hpGain = getValidStatInput(scanner, "HP", remaining, 0);
-                remaining -= hpGain;
-
-                int attackGain = getValidStatInput(scanner, "Attack", remaining, 0);
-                remaining -= attackGain;
-
-                int defenseGain = getValidStatInput(scanner, "Defense", remaining, 0);
-                remaining -= defenseGain;
-
-                int magicAttackGain = getValidStatInput(scanner, "Magic Attack", remaining, 0);
-                remaining -= magicAttackGain;
-
-                int magicDefenseGain = getValidStatInput(scanner, "Magic Defense", remaining, 0);
-                remaining -= magicDefenseGain;
-
-                int speedGain = getValidStatInput(scanner, "Speed", remaining, 0);
-                remaining -= speedGain;
-
-                int totalAllocated = hpGain + attackGain + defenseGain + magicAttackGain + magicDefenseGain + speedGain;
-
-                if (totalAllocated == newPoints) {
-                    hp += hpGain;
-                    attack += attackGain;
-                    defense += defenseGain;
-                    magicAttack += magicAttackGain;
-                    magicDefense += magicDefenseGain;
-                    speed += speedGain;
-                    validAllocation = true;
-                    System.out.println("\n✓ Stat points allocated!");
-                } else {
-                    System.out.println("\n[ERROR] You used " + totalAllocated + " out of " + newPoints + " points.");
-                    System.out.println("You must allocate ALL " + newPoints + " points. Let's try again.\n");
-                }
-            }
+            if (Input.confirm(scanner, "Confirm this allocation?")) return gains;
         }
     }
 
-    public static void setPlayerMoves(Scanner scanner) {
-        if (speciality == null) {
-            System.out.println("Please set your specialty first.");
-            return;
+    public boolean isValid() {
+        if (name == null || name.isBlank() || speciality == null || ability == null) return false;
+        if (moves == null || moves.length != 4) return false;
+        for (Moves.Move m : moves) {
+            if (m == null || m.unlockLevel() > level) return false;
         }
-        switch (speciality) {
-            case "Warrior" -> Moves.selectedMoves = Moves.chooseWarriorMoves(scanner);
-            case "Mage"    -> Moves.selectedMoves = Moves.chooseMageMoves(scanner);
-            case "Rogue"   -> Moves.selectedMoves = Moves.chooseRogueMoves(scanner);
-            case "Paladin" -> Moves.selectedMoves = Moves.choosePaladinMoves(scanner);
+        for (int s : stats()) {
+            if (s < 0) return false;
         }
+        return totalStats() == statPointsForLevel(level);
     }
 
-    public static boolean validateHero() {
-            if (Player.name == null || Player.name.isBlank()) {
-                System.out.println("Error: name not set.");
-                return false;
-            }
-            if (Moves.selectedMoves == null) {
-                System.out.println("Error: moves not set.");
-                return false;
-            }
-            if (Player.speciality == null) {
-                System.out.println("Error: specialty not set.");
-                return false;
-            }
-            if (Player.ability == null) {
-                System.out.println("Error: ability not set.");
-                return false;
-            }
-            int total = Player.setPlayerstats.hp + Player.setPlayerstats.attack
-                    + Player.setPlayerstats.defense + Player.setPlayerstats.magicAttack
-                    + Player.setPlayerstats.magicDefense + Player.setPlayerstats.speed;
-            int expected = Player.setPlayerstats.getMaxStatsForLevel();
-            if (total != expected) {
-                System.out.println("Error: stat points don't add up (" + total + "/" + expected + ").");
-                return false;
-            }
-            return true;
-        }
+    // ------------------------------------------------------------------ display
 
-    public static void displayPlayerStats() {
-        System.out.println("\n--- PLAYER STATS ---");
-        System.out.println("Name: " + name);
-        if (name == null) {
-                System.out.println("\nNo hero exists yet. Choose 'Create Hero' first.");
-                return;
-            }
-        System.out.println("Specialty: " + speciality);
-        System.out.println("Level: " + setPlayerstats.level);
-        System.out.println("XP: " + xp + " / " + LevelSystem.xpForLevel(setPlayerstats.level));
-        System.out.println("HP: " + setPlayerstats.hp);
-        System.out.println("Attack: " + setPlayerstats.attack);
-        System.out.println("Defense: " + setPlayerstats.defense);
-        System.out.println("Magic Attack: " + setPlayerstats.magicAttack);
-        System.out.println("Magic Defense: " + setPlayerstats.magicDefense);
-        System.out.println("Speed: " + setPlayerstats.speed);
-        System.out.println("Total Stats: " + (setPlayerstats.hp + setPlayerstats.attack + setPlayerstats.defense + setPlayerstats.magicAttack + setPlayerstats.magicDefense + setPlayerstats.speed));
-        System.out.println("Ability: " + ability);
-        System.out.println("Current Moves:");
-        if (Moves.selectedMoves != null) {
-            for (int i = 0; i < Moves.selectedMoves.length; i++) {
-                System.out.println("  " + (i + 1) + ". " + Moves.selectedMoves[i].description());
-            }
-        } else {
-            System.out.println("  (none selected)");
+    public void display() {
+        System.out.println("\n=================================");
+        System.out.println("  " + name + (bot ? " [BOT]" : ""));
+        System.out.println("=================================");
+        System.out.println("Specialty: " + speciality + "   Level: " + level);
+        System.out.println("XP: " + xp + " / " + LevelSystem.xpForLevel(level));
+        System.out.println("Rating: " + rating + "   Record: " + wins + "W - " + losses + "L");
+        System.out.println("Gold: " + gold + "   Health Potions: " + potions);
+        System.out.println("---------------------------------");
+        int[] s = stats();
+        for (int i = 0; i < s.length; i++) {
+            System.out.printf("%-15s %d%n", STAT_NAMES[i] + ":", s[i]);
+        }
+        System.out.println("Total Stats:    " + totalStats() + "   (Battle HP: " + maxBattleHp() + ")");
+        System.out.println("Signature:      " + ability);
+        System.out.println("Moves:");
+        for (int i = 0; i < moves.length; i++) {
+            System.out.println("  " + (i + 1) + ". " + moves[i].description());
         }
     }
-
-    public static void resetPlayer() {
-    name = null;
-    speciality = null;
-    ability = null;
-    xp = 0;
-    unlockedMoves.clear();
-    unlockedUltimates.clear();
-    setPlayerstats.level = 1;
-    setPlayerstats.hp = 0;
-    setPlayerstats.attack = 0;
-    setPlayerstats.defense = 0;
-    setPlayerstats.magicAttack = 0;
-    setPlayerstats.magicDefense = 0;
-    setPlayerstats.speed = 0;
-    Moves.selectedMoves = null;
-}
 }

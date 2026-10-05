@@ -3,76 +3,63 @@ import java.util.Scanner;
 public class LevelSystem {
 
     public static final int STAT_POINTS_PER_LEVEL = 10;
+    public static final int MAX_LEVEL = 50;
 
     public static int xpForLevel(int level) {
         return (int) (100 * Math.pow(level, 1.5));
     }
 
-    public static void grantXp(Scanner scanner, int amount) {
-        Player.xp += amount;
-        System.out.println("\n+" + amount + " XP gained!");
-
-        while (Player.xp >= xpForLevel(Player.setPlayerstats.level)) {
-            Player.xp -= xpForLevel(Player.setPlayerstats.level);
-            levelUp(scanner);
-        }
-
-        int needed = xpForLevel(Player.setPlayerstats.level) - Player.xp;
-        System.out.println("XP: " + Player.xp + "/" + xpForLevel(Player.setPlayerstats.level) + " (" + needed + " to next level)");
+    /** XP for beating an opponent of the given level. */
+    public static int xpReward(int opponentLevel, int ownLevel) {
+        int base = (int) (30 * Math.pow(opponentLevel, 1.3)) + 20;
+        double diff = 1.0 + 0.1 * (opponentLevel - ownLevel);
+        return Math.max(10, (int) (base * Math.max(0.3, Math.min(diff, 2.0))));
     }
 
-    private static void levelUp(Scanner scanner) {
-        Player.setPlayerstats.level++;
-        int lvl = Player.setPlayerstats.level;
-
-        System.out.println("\n🎉 LEVEL UP! You reached Level " + lvl + "!");
-        System.out.println("+" + STAT_POINTS_PER_LEVEL + " stat points to spend.");
-        Player.setPlayerstats.allocateNewPoints(scanner, STAT_POINTS_PER_LEVEL);
-
-        checkMoveUnlock(lvl);
-        checkUltimateUnlock(lvl);
-
-        autoSave();
-    }
-
-    private static void autoSave() {
-        if (Moves.selectedMoves == null || Moves.selectedMoves.length < 4) {
-            System.out.println("Skipping auto-save: moves not fully set.");
+    /**
+     * Adds XP and handles level-ups. With a scanner the player spends their new points
+     * interactively; with null (bots, tests) the recommended build is used.
+     */
+    public static void grantXp(Scanner scanner, Player player, int amount) {
+        if (player.level >= MAX_LEVEL) {
+            System.out.println(player.name + " is at the maximum level (" + MAX_LEVEL + ").");
             return;
         }
-        Database.savePlayer(
-            Player.name,
-            Player.speciality,
-            Player.setPlayerstats.level,
-            Player.xp,
-            Player.setPlayerstats.hp,
-            Player.setPlayerstats.attack,
-            Player.setPlayerstats.defense,
-            Player.setPlayerstats.magicAttack,
-            Player.setPlayerstats.magicDefense,
-            Player.setPlayerstats.speed,
-            Player.ability,
-            Moves.selectedMoves[0].description(),
-            Moves.selectedMoves[1].description(),
-            Moves.selectedMoves[2].description(),
-            Moves.selectedMoves[3].description()
-        );
-        System.out.println("Progress auto-saved.");
-    }
+        player.xp += amount;
+        System.out.println("\n+" + amount + " XP gained!");
 
-    private static void checkMoveUnlock(int level) {
-        if (level % 5 == 0) {
-            String move = "Move Lvl " + level;
-            Player.unlockedMoves.add(move);
-            System.out.println("NEW MOVE unlocked: " + move);
+        while (player.level < MAX_LEVEL && player.xp >= xpForLevel(player.level)) {
+            player.xp -= xpForLevel(player.level);
+            levelUp(scanner, player);
+        }
+        if (player.level >= MAX_LEVEL) {
+            player.xp = 0;
+            System.out.println("MAX LEVEL reached!");
+        } else {
+            int needed = xpForLevel(player.level) - player.xp;
+            System.out.println("XP: " + player.xp + "/" + xpForLevel(player.level) + " (" + needed + " to next level)");
         }
     }
 
-    private static void checkUltimateUnlock(int level) {
-        if (level % 10 == 0) {
-            String ultimate = "Ultimate Lvl " + level;
-            Player.unlockedUltimates.add(ultimate);
-            System.out.println("ULTIMATE ABILITY unlocked: " + ultimate);
+    private static void levelUp(Scanner scanner, Player player) {
+        player.level++;
+        System.out.println("\n*** LEVEL UP! " + player.name + " reached Level " + player.level + "! ***");
+        System.out.println("+" + STAT_POINTS_PER_LEVEL + " stat points to spend.");
+
+        if (scanner == null) {
+            int[] gains = Player.buildGains(Character.recommendedBuild(player.speciality), STAT_POINTS_PER_LEVEL, 0);
+            int[] stats = player.stats();
+            for (int i = 0; i < stats.length; i++) stats[i] += gains[i];
+            player.setStats(stats);
+        } else {
+            player.setStats(player.spendPoints(scanner, player.stats(), STAT_POINTS_PER_LEVEL, 0));
+        }
+
+        for (Moves.Move m : Moves.catalogFor(player.speciality)) {
+            if (m.unlockLevel() == player.level) {
+                String kind = m.unlockLevel() >= Moves.MASTER_LEVEL ? "MASTER MOVE" : "ULTIMATE MOVE";
+                System.out.println(kind + " unlocked: " + m.name() + "! Equip it from 'Manage Moves'.");
+            }
         }
     }
 }

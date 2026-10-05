@@ -1,141 +1,47 @@
 import java.util.Scanner;
 
+/** Class (specialty) definitions: the signature ability options and recommended stat builds. */
 public class Character {
 
-    public static String chooseWarriorAbility(Scanner scanner) {
-        String[] warriorOptions = {
-            "Whirlwind Slash : Deal 1.2x attack damage to all enemies. Costs 20% of current HP.",
-            "Shield Bash : Deal 0.8x attack damage + stun opponent for 1 turn (50% hit chance).",
-            "Execute : Deal 2.0x attack damage if opponent is below 30% HP, otherwise 0.5x damage."
+    public static final String[] SPECIALTIES = {"Warrior", "Mage", "Rogue", "Paladin"};
+
+    public static final String[] SPECIALTY_BLURBS = {
+        "Warrior - tough frontline fighter. High HP and attack, HP-costing power moves.",
+        "Mage    - glass cannon. Huge magic damage, debuffs and a turn-bending ultimate.",
+        "Rogue   - fast and deadly. Crits, poison, dodges and multi-hit combos.",
+        "Paladin - holy tank. Strong defense, healing and comeback damage."
+    };
+
+    /** Stat weights (percent) in order HP, Attack, Defense, Magic Attack, Magic Defense, Speed. */
+    public static int[] recommendedBuild(String specialty) {
+        return switch (specialty) {
+            case "Warrior" -> new int[] {30, 30, 15, 0, 15, 10};
+            case "Mage" -> new int[] {20, 0, 15, 40, 15, 10};
+            case "Rogue" -> new int[] {20, 30, 10, 5, 10, 25};
+            case "Paladin" -> new int[] {25, 30, 15, 0, 20, 10};
+            default -> throw new IllegalArgumentException("Unknown specialty: " + specialty);
         };
-
-        System.out.println("\n--- Choose Your Ability ---");
-        for (int i = 0; i < warriorOptions.length; i++) {
-            System.out.println((i + 1) + ". " + warriorOptions[i]);
-        }
-
-        int choice = -1;
-        while (choice < 1 || choice > warriorOptions.length) {
-            System.out.print("Enter choice (1-" + warriorOptions.length + "): ");
-            if (scanner.hasNextInt()) {
-                choice = scanner.nextInt();
-                scanner.nextLine();
-                if (choice < 1 || choice > warriorOptions.length) {
-                    System.out.println("Invalid selection.");
-                }
-            } else {
-                System.out.println("Invalid input! Please enter a number.");
-                scanner.nextLine();
-            }
-        }
-
-        String ability = warriorOptions[choice - 1];
-        System.out.println("Ability set to: " + ability + "\n");
-        return ability;
     }
 
-    public static String chooseMageAbility(Scanner scanner) {
-        String[] mageOptions = {
-            "Fireball : Deal 1.5x magic attack damage to all enemies. Can chain (50% chance to hit same target twice)..", 
-            "Arcane Seal : Reduce opponent's magic attack by 40% for 3 turns. No direct damage; pure utility..", 
-            "Mana Burst : Deal 2.0x magic attack damage. Costs 30% max HP. Resets cooldown if it kills opponent.", 
-        };
-
-        System.out.println("\n--- Choose Your Ability ---");
-        for (int i = 0; i < mageOptions.length; i++) {
-            System.out.println((i + 1) + ". " + mageOptions[i]);
-        }
-
-        int choice = -1;
-
-        while (choice < 1 || choice > mageOptions.length) {
-            System.out.print("Enter choice (1-" + mageOptions.length + "): ");
-
-            if (scanner.hasNextInt()) {
-                choice = scanner.nextInt();
-                scanner.nextLine(); 
-
-                if (choice < 1 || choice > mageOptions.length) {
-                    System.out.println("Invalid selection. Please choose between 1 and " + mageOptions.length + ".");
-                }
-            } else {
-                System.out.println("Invalid input! Please enter a number.");
-                scanner.nextLine(); 
-            }
-        }
-
-        String ability = mageOptions[choice - 1];
-        System.out.println("Ability set to: " + ability + "\n");
-        return ability;
+    /**
+     * The signature ability is one of the class's three core moves. In battle it can be
+     * unleashed once per fight with 1.5x power and no HP cost.
+     */
+    public static Moves.Move[] abilityOptions(String specialty) {
+        Moves.Move[] all = Moves.catalogFor(specialty);
+        return new Moves.Move[] { all[0], all[1], all[2] };
     }
 
-    public static String chooseRogueAbility(Scanner scanner) {
-        String[] rogueOptions = {
-            "Assassinate : Deal 1.8x attack damage + guaranteed critical (2x multiplier). Only usable if you move first this turn.", 
-            "Evasion Stance : Dodge next incoming attack + gain +30% speed for 2 turns. Defensive pivot.", 
-            "Poison Dart : Deal 0.6x attack damage + apply poison (5% max HP damage per turn for 4 turns). Low burst, high sustained.", 
-        };
-
-        System.out.println("\n--- Choose Your Ability ---");
-        for (int i = 0; i < rogueOptions.length; i++) {
-            System.out.println((i + 1) + ". " + rogueOptions[i]);
+    public static String chooseAbility(Scanner scanner, String specialty) {
+        Moves.Move[] options = abilityOptions(specialty);
+        String[] labels = new String[options.length];
+        for (int i = 0; i < options.length; i++) {
+            labels[i] = options[i].name() + " : " + options[i].effect();
         }
-
-        int choice = -1;
-
-        while (choice < 1 || choice > rogueOptions.length) {
-            System.out.print("Enter choice (1-" + rogueOptions.length + "): ");
-
-            if (scanner.hasNextInt()) {
-                choice = scanner.nextInt();
-                scanner.nextLine(); 
-
-                if (choice < 1 || choice > rogueOptions.length) {
-                    System.out.println("Invalid selection. Please choose between 1 and " + rogueOptions.length + ".");
-                }
-            } else {
-                System.out.println("Invalid input! Please enter a number.");
-                scanner.nextLine(); 
-            }
-        }
-
-        String ability = rogueOptions[choice - 1];
-        System.out.println("Ability set to: " + ability + "\n");
+        System.out.println("\nYour signature ability can be used ONCE per battle with 1.5x power and no HP cost.");
+        int choice = Input.choose(scanner, "Choose Your Signature Ability", labels);
+        String ability = options[choice].name();
+        System.out.println("Ability set to: " + ability);
         return ability;
-    }   
-
-    public static String choosePaladinAbility(Scanner scanner) {
-        String[] paladinOptions = {
-            "Divine Strike : Deal 1.5x attack damage with a 50% chance to heal self for 20% max HP.", 
-            "Blessing of Light : Grant all allies +20% defense for 3 turns. No direct damage; pure support.", 
-            "Judgment : Deal 2.0x attack damage if opponent is below 50% HP, otherwise 1.0x damage. High risk/reward.", 
-        };
-
-        System.out.println("\n--- Choose Your Ability ---");
-        for (int i = 0; i < paladinOptions.length; i++) {
-            System.out.println((i + 1) + ". " + paladinOptions[i]);
-        }
-
-        int choice = -1;
-
-        while (choice < 1 || choice > paladinOptions.length) {
-            System.out.print("Enter choice (1-" + paladinOptions.length + "): ");
-
-            if (scanner.hasNextInt()) {
-                choice = scanner.nextInt();
-                scanner.nextLine(); 
-
-                if (choice < 1 || choice > paladinOptions.length) {
-                    System.out.println("Invalid selection. Please choose between 1 and " + paladinOptions.length + ".");
-                }
-            } else {
-                System.out.println("Invalid input! Please enter a number.");
-                scanner.nextLine(); 
-            }
-        }
-
-        String paladinAbility = paladinOptions[choice - 1];
-        System.out.println("Ability set to: " + paladinAbility + "\n");
-        return paladinAbility;
     }
 }

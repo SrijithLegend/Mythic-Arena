@@ -1,196 +1,151 @@
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 
 public class Moves {
 
-    public record Move(String description) {}
+    public enum Type { PHYSICAL, MAGIC, SUPPORT }
 
-    public static Move[] selectedMoves = null;
-    
-    public static Move[] chooseWarriorMoves(Scanner scanner) {
-        Move[] warriorMoves = {
-            new Move("Whirlwind Slash — 1.2x attack, all enemies. Costs 20% current HP."),
-            new Move("Shield Bash — 0.8x attack + 50% chance to stun 1 turn. Scales with defense."),
-            new Move("Execute — 2.0x attack if opponent <30% HP, else 0.5x."),
-            new Move("Slash — 1.0x attack, no cost. Reliable basic."),
-            new Move("Rending Cleave — 1.1x attack + opponent defense -15% for 2 turns."),
-            new Move("Counter Stance — Reflect 50% of next incoming hit back at attacker. Lasts 1 turn."),
-            new Move("War Cry — Own attack +25% for 3 turns."),
-            new Move("Adrenaline Surge — Own speed +30% + heal 10% max HP. 1 turn."),
-            new Move("Berserker's Fury — 2.5x attack, all enemies. Costs 35% max HP. Unlock Lv10."),
-            new Move("Last Stand — If own HP <20%: 3.0x attack + immune to next hit. Unlock Lv20.")
-        };
-
-        System.out.println("\n--- Choose Your Moves ---");
-        for (int i = 0; i < warriorMoves.length; i++) {
-            System.out.println((i + 1) + ". " + warriorMoves[i].description());
+    /**
+     * A move. Combat.java implements the special effect of each move by name;
+     * power is the base damage multiplier (0 for pure support moves).
+     */
+    public record Move(String name, Type type, double power, int unlockLevel, String effect) {
+        public String description() {
+            String lock = unlockLevel > 1 ? " [Unlock Lv" + unlockLevel + "]" : "";
+            return name + " (" + type.name().toLowerCase() + ") - " + effect + lock;
         }
 
-        Move[] selectedMoves = new Move[4];
-        for (int moveSlot = 0; moveSlot < 4; moveSlot++) {
-            int choice = -1;
-            
-            while (choice < 1 || choice > warriorMoves.length) {
-                System.out.print("Choose Move #" + (moveSlot + 1) + " (1-" + warriorMoves.length + "): ");
-                
-                if (scanner.hasNextInt()) {
-                    choice = scanner.nextInt();
-                    scanner.nextLine();
-                    
-                    if (choice < 1 || choice > warriorMoves.length) {
-                        System.out.println("Invalid selection.");
-                    }
-                } else {
-                    System.out.println("Invalid input! Please enter a number.");
-                    scanner.nextLine();
-                }
-            }
-            
-            selectedMoves[moveSlot] = warriorMoves[choice - 1];
-            System.out.println("Added: " + selectedMoves[moveSlot].description());
+        public boolean dealsDamage() {
+            return type != Type.SUPPORT;
         }
-        
-        System.out.println("\nAll 4 moves set!");
-        return selectedMoves;
     }
 
-    public static Move[] chooseMageMoves(Scanner scanner) {
-        Move[] mageMoves = {
-            new Move("Fireball — 1.5x magic attack, all enemies. 50% chance to chain-hit same target again."),
-            new Move("Arcane Seal — Opponent magic attack -40% for 3 turns. No direct damage."),
-            new Move("Mana Burst — 2.0x magic attack. Costs 30% max HP. Resets cooldown on kill."),
-            new Move("Frost Bolt — 1.0x magic attack + opponent speed -20% for 2 turns."),
-            new Move("Arcane Missile — 0.9x magic attack, guaranteed hit, no cost."),
-            new Move("Chain Lightning — 1.3x magic attack, 30% chance to hit again for 0.5x."),
-            new Move("Mana Focus — Own magic attack +25% for 3 turns."),
-            new Move("Ward of Insight — Own magic defense +30% for 3 turns."),
-            new Move("Meteor Storm — 2.8x magic attack, all enemies. Costs 30% max HP. Unlock Lv10."),
-            new Move("Time Fracture — Take an extra turn immediately after this one. Costs 20% max HP. Unlock Lv20.")
+    public static final int ULTIMATE_LEVEL = 10;
+    public static final int MASTER_LEVEL = 20;
+
+    private static final Move[] WARRIOR = {
+        new Move("Whirlwind Slash", Type.PHYSICAL, 1.7, 1, "1.7x attack. Costs 5% of current HP."),
+        new Move("Shield Bash", Type.PHYSICAL, 0.8, 1, "0.8x attack + bonus from defense. 50% chance to stun for 1 turn."),
+        new Move("Execute", Type.PHYSICAL, 0.7, 1, "2.5x attack if opponent is below 30% HP, otherwise 0.7x."),
+        new Move("Slash", Type.PHYSICAL, 1.2, 1, "1.2x attack. Reliable, no cost."),
+        new Move("Rending Cleave", Type.PHYSICAL, 1.2, 1, "1.2x attack + opponent defense -20% for 2 turns."),
+        new Move("Counter Stance", Type.SUPPORT, 0, 1, "Reflect 50% of the next hit taken back at the attacker (2 turns)."),
+        new Move("War Cry", Type.SUPPORT, 0, 1, "Own attack +25% for 3 turns."),
+        new Move("Adrenaline Surge", Type.SUPPORT, 0, 1, "Own speed +30% for 2 turns + heal 8% max HP."),
+        new Move("Berserker's Fury", Type.PHYSICAL, 2.5, ULTIMATE_LEVEL, "2.5x attack. Costs 10% max HP."),
+        new Move("Last Stand", Type.PHYSICAL, 1.0, MASTER_LEVEL, "If own HP < 25%: 3.0x attack + immune to the next hit. Otherwise 1.0x.")
+    };
+
+    private static final Move[] MAGE = {
+        new Move("Fireball", Type.MAGIC, 1.3, 1, "1.3x magic attack. 50% chance to chain-hit again for 0.4x."),
+        new Move("Arcane Seal", Type.SUPPORT, 0, 1, "Opponent attack and magic attack -30% for 3 turns."),
+        new Move("Mana Burst", Type.MAGIC, 2.0, 1, "2.0x magic attack. Costs 8% max HP."),
+        new Move("Frost Bolt", Type.MAGIC, 1.0, 1, "1.0x magic attack + opponent speed -25% for 2 turns."),
+        new Move("Arcane Missile", Type.MAGIC, 0.9, 1, "0.9x magic attack. Never misses, no cost."),
+        new Move("Chain Lightning", Type.MAGIC, 1.3, 1, "1.3x magic attack. 30% chance to strike again for 0.5x."),
+        new Move("Mana Focus", Type.SUPPORT, 0, 1, "Own magic attack +25% for 3 turns."),
+        new Move("Ward of Insight", Type.SUPPORT, 0, 1, "Own defense and magic defense +30% for 3 turns."),
+        new Move("Meteor Storm", Type.MAGIC, 2.8, ULTIMATE_LEVEL, "2.8x magic attack. Costs 12% max HP."),
+        new Move("Time Fracture", Type.SUPPORT, 0, MASTER_LEVEL, "Take an extra action immediately. Costs 12% max HP.")
+    };
+
+    private static final Move[] ROGUE = {
+        new Move("Assassinate", Type.PHYSICAL, 0.8, 1, "1.4x attack + guaranteed critical if you acted first this turn, otherwise 0.8x."),
+        new Move("Evasion Stance", Type.SUPPORT, 0, 1, "Dodge the next incoming attack + own speed +30% for 2 turns."),
+        new Move("Poison Dart", Type.PHYSICAL, 0.6, 1, "0.6x attack + poison (5% of opponent max HP per turn for 4 turns)."),
+        new Move("Quick Strike", Type.PHYSICAL, 1.1, 1, "1.1x attack. Always acts first regardless of speed."),
+        new Move("Backstab", Type.PHYSICAL, 1.5, 1, "1.5x attack, 2.2x if the opponent used a non-damaging move last turn."),
+        new Move("Throwing Knives", Type.PHYSICAL, 0.45, 1, "3 hits of 0.45x attack. No cost."),
+        new Move("Shadow Step", Type.SUPPORT, 0, 1, "Own speed +40% for 2 turns."),
+        new Move("Sharpen Blades", Type.SUPPORT, 0, 1, "Own attack +20% and critical chance +15% for 3 turns."),
+        new Move("Death Mark", Type.PHYSICAL, 0.8, ULTIMATE_LEVEL, "0.8x attack + marks the opponent: the next 3 hits against them deal 1.5x."),
+        new Move("Thousand Cuts", Type.PHYSICAL, 0.5, MASTER_LEVEL, "5 hits of 0.5x attack, each with its own critical roll.")
+    };
+
+    private static final Move[] PALADIN = {
+        new Move("Divine Strike", Type.PHYSICAL, 1.3, 1, "1.3x attack. 50% chance to heal self for 8% max HP."),
+        new Move("Blessing of Light", Type.SUPPORT, 0, 1, "Heal 8% max HP + own defense +20% for 3 turns."),
+        new Move("Judgment", Type.PHYSICAL, 0.9, 1, "1.8x attack if opponent is below 50% HP, otherwise 0.9x."),
+        new Move("Smite", Type.PHYSICAL, 1.1, 1, "1.1x attack. Never misses, no cost."),
+        new Move("Consecration", Type.PHYSICAL, 0.9, 1, "0.9x attack + heal self 6% max HP."),
+        new Move("Holy Retribution", Type.PHYSICAL, 1.2, 1, "1.2x attack, 1.6x if own HP is below 40%."),
+        new Move("Sacred Vow", Type.SUPPORT, 0, 1, "Own defense and magic defense +25% for 3 turns."),
+        new Move("Lay on Hands", Type.SUPPORT, 0, 1, "Heal self 20% max HP."),
+        new Move("Wrath of Heaven", Type.PHYSICAL, 1.6, ULTIMATE_LEVEL, "1.6x attack + heal self 6% max HP."),
+        new Move("Guardian Angel", Type.SUPPORT, 0, MASTER_LEVEL, "Survive the next lethal hit at 1 HP (once per battle).")
+    };
+
+    public static Move[] catalogFor(String specialty) {
+        return switch (specialty) {
+            case "Warrior" -> WARRIOR;
+            case "Mage" -> MAGE;
+            case "Rogue" -> ROGUE;
+            case "Paladin" -> PALADIN;
+            default -> throw new IllegalArgumentException("Unknown specialty: " + specialty);
         };
-
-        System.out.println("\n--- Choose Your Moves ---");
-        for (int i = 0; i < mageMoves.length; i++) {
-            System.out.println((i + 1) + ". " + mageMoves[i].description());
-        }
-
-        Move[] selectedMoves = new Move[4];
-        for (int moveSlot = 0; moveSlot < 4; moveSlot++) {
-            int choice = -1;
-
-            while (choice < 1 || choice > mageMoves.length) {
-                System.out.print("Choose Move #" + (moveSlot + 1) + " (1-" + mageMoves.length + "): ");
-
-                if (scanner.hasNextInt()) {
-                    choice = scanner.nextInt();
-                    scanner.nextLine();
-
-                    if (choice < 1 || choice > mageMoves.length) {
-                        System.out.println("Invalid selection. Please choose between 1 and " + mageMoves.length + ".");
-                    }
-                } else {
-                    System.out.println("Invalid input! Please enter a number.");
-                    scanner.nextLine();
-                }
-            }
-
-            selectedMoves[moveSlot] = mageMoves[choice - 1];
-            System.out.println("Added: " + selectedMoves[moveSlot].description());
-        }
-        
-        System.out.println("\nAll 4 moves set!");
-        return selectedMoves;
     }
 
-    public static Move[] chooseRogueMoves(Scanner scanner) {
-        Move[] rogueMoves = {
-            new Move("Assassinate — 1.8x attack + guaranteed crit (2x). Only if moving first this turn."),
-            new Move("Evasion Stance — Dodge next hit + speed +30% for 2 turns."),
-            new Move("Poison Dart — 0.6x attack + poison 5% max HP/turn for 4 turns."),
-            new Move("Quick Strike — 1.0x attack, always goes first regardless of speed."),
-            new Move("Backstab — 1.4x attack, 2.0x if opponent used a defensive move last turn."),
-            new Move("Throwing Knives — 0.8x attack, all enemies. No cost."),
-            new Move("Shadow Step — Own speed +40% for 2 turns."),
-            new Move("Sharpen Blades — Own attack +20% + crit chance +15% for 3 turns."),
-            new Move("Death Mark — Marks opponent; next 2 attacks against them deal 1.5x. Unlock Lv10."),
-            new Move("Thousand Cuts — 5 hits of 0.4x attack each, independent crit rolls. Unlock Lv20.")
-        };
-
-        System.out.println("\n--- Choose Your Moves ---");
-        for (int i = 0; i < rogueMoves.length; i++) {
-            System.out.println((i + 1) + ". " + rogueMoves[i].description());
+    /**
+     * Finds a move by name. Also accepts the old "Name — description" strings
+     * that earlier versions of the game stored in the database.
+     */
+    public static Move find(String specialty, String text) {
+        if (text == null) return null;
+        for (Move m : catalogFor(specialty)) {
+            if (text.trim().toLowerCase().startsWith(m.name().toLowerCase())) return m;
         }
-
-        Move[] selectedMoves = new Move[4];
-        for (int moveSlot = 0; moveSlot < 4; moveSlot++) {
-            int choice = -1;
-
-            while (choice < 1 || choice > rogueMoves.length) {
-                System.out.print("Choose Move #" + (moveSlot + 1) + " (1-" + rogueMoves.length + "): ");
-
-                if (scanner.hasNextInt()) {
-                    choice = scanner.nextInt();
-                    scanner.nextLine();
-
-                    if (choice < 1 || choice > rogueMoves.length) {
-                        System.out.println("Invalid selection. Please choose between 1 and " + rogueMoves.length + ".");
-                    }
-                } else {
-                    System.out.println("Invalid input! Please enter a number.");
-                    scanner.nextLine();
-                }
-            }
-
-            selectedMoves[moveSlot] = rogueMoves[choice - 1];
-            System.out.println("Added: " + selectedMoves[moveSlot].description());
-        }
-        
-        System.out.println("\nAll 4 moves set!");
-        return selectedMoves;
+        return null;
     }
 
-    public static Move[] choosePaladinMoves(Scanner scanner) {
-        Move[] paladinMoves = {
-            new Move("Divine Strike — 1.5x attack, 50% chance to heal self 20% max HP."),
-            new Move("Blessing of Light — All allies defense +20% for 3 turns. No direct damage."),
-            new Move("Judgment — 2.0x attack if opponent <50% HP, else 1.0x."),
-            new Move("Smite — 1.1x attack, guaranteed hit, no cost."),
-            new Move("Consecration — 0.9x attack, all enemies + heal self 10% max HP."),
-            new Move("Holy Retribution — 1.2x attack, 1.6x if own HP <40%."),
-            new Move("Sacred Vow — Own defense + magic defense +25% for 3 turns."),
-            new Move("Lay on Hands — Heal self 25% max HP. No cost."),
-            new Move("Wrath of Heaven — 2.5x attack, all enemies + heal self 15% max HP. Unlock Lv10."),
-            new Move("Guardian Angel — Passive: survive one lethal hit per battle at 1 HP. Unlock Lv20.")
-        };
+    public static List<Move> unlockedFor(String specialty, int level) {
+        List<Move> list = new ArrayList<>();
+        for (Move m : catalogFor(specialty)) {
+            if (m.unlockLevel() <= level) list.add(m);
+        }
+        return list;
+    }
 
-        System.out.println("\n--- Choose Your Moves ---");
-        for (int i = 0; i < paladinMoves.length; i++) {
-            System.out.println((i + 1) + ". " + paladinMoves[i].description());
+    /** The first four moves of a class: a sane default loadout. */
+    public static Move[] defaultMoves(String specialty) {
+        Move[] all = catalogFor(specialty);
+        return new Move[] { all[0], all[2], all[3], all[4] };
+    }
+
+    /** Lets the player pick 4 different moves from those unlocked at their level. */
+    public static Move[] chooseMoves(Scanner scanner, String specialty, int level) {
+        Move[] all = catalogFor(specialty);
+
+        System.out.println("\n--- Choose Your 4 Moves ---");
+        for (int i = 0; i < all.length; i++) {
+            String locked = all[i].unlockLevel() > level ? "  (LOCKED)" : "";
+            System.out.println("  " + (i + 1) + ". " + all[i].description() + locked);
         }
 
-        Move[] selectedMoves = new Move[4];
-        for (int moveSlot = 0; moveSlot < 4; moveSlot++) {
-            int choice = -1;
-
-            while (choice < 1 || choice > paladinMoves.length) {
-                System.out.print("Choose Move #" + (moveSlot + 1) + " (1-" + paladinMoves.length + "): ");
-
-                if (scanner.hasNextInt()) {
-                    choice = scanner.nextInt();
-                    scanner.nextLine();
-
-                    if (choice < 1 || choice > paladinMoves.length) {
-                        System.out.println("Invalid selection. Please choose between 1 and " + paladinMoves.length + ".");
-                    }
+        Move[] selected = new Move[4];
+        for (int slot = 0; slot < 4; slot++) {
+            while (true) {
+                int choice = Input.readInt(scanner, "Choose Move #" + (slot + 1) + " (1-" + all.length + "): ", 1, all.length);
+                Move move = all[choice - 1];
+                if (move.unlockLevel() > level) {
+                    System.out.println("  -> " + move.name() + " unlocks at level " + move.unlockLevel() + ".");
+                } else if (contains(selected, move)) {
+                    System.out.println("  -> You already picked " + move.name() + ".");
                 } else {
-                    System.out.println("Invalid input! Please enter a number.");
-                    scanner.nextLine();
+                    selected[slot] = move;
+                    System.out.println("Added: " + move.name());
+                    break;
                 }
             }
-
-            selectedMoves[moveSlot] = paladinMoves[choice - 1];
-            System.out.println("Added: " + selectedMoves[moveSlot].description());
         }
-        
         System.out.println("\nAll 4 moves set!");
-        return selectedMoves;
+        return selected;
+    }
+
+    private static boolean contains(Move[] moves, Move move) {
+        for (Move m : moves) {
+            if (m == move) return true;
+        }
+        return false;
     }
 }

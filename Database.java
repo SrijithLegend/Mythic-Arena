@@ -2,262 +2,416 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.Statement;
 import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 
+/** All persistence goes through here (SQLite via JDBC). */
 public class Database {
 
-    private static void ensureTableExists(Connection conn) throws SQLException {
-        String createTableCommand =
-            "CREATE TABLE IF NOT EXISTS player_stats (" +
-            "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-            "name TEXT NOT NULL, " +
-            "specialty TEXT, level INTEGER, xp INTEGER, hp INTEGER, attack INTEGER, " +
-            "defense INTEGER, magic_attack INTEGER, magic_defense INTEGER, speed INTEGER, " +
-            "ability TEXT, move1 TEXT, move2 TEXT, move3 TEXT, move4 TEXT);";
-        try (Statement stmt = conn.createStatement()) {
-            stmt.execute(createTableCommand);
-        }
+    /** Override with -Drpg.db=path/to/file.db (the self-test uses a throwaway file). */
+    private static final String URL = "jdbc:sqlite:" + System.getProperty("rpg.db", "game_data.db");
+
+    private static final String PLAYER_COLUMNS =
+        "name, specialty, level, xp, hp, attack, defense, magic_attack, magic_defense, speed, " +
+        "ability, move1, move2, move3, move4, wins, losses, rating, gold, potions, is_bot";
+
+    public static Connection connect() throws SQLException {
+        return DriverManager.getConnection(URL);
     }
-    
-    public static void savePlayer(String name, String specialty, int level, int xp, int hp, int attack, int defense, int magicAttack,
-         int magicDefense, int speed, String ability, String move1, String move2, String move3, String move4) {
 
-        String url = "jdbc:sqlite:game_data.db";
+    // ------------------------------------------------------------------ setup
 
-        try (Connection conn = DriverManager.getConnection(url)) {
-            System.out.println("1. Connected to the database!");
-
-
-            Statement translator = conn.createStatement();
-
-            String createTableCommand = 
-                "CREATE TABLE IF NOT EXISTS player_stats (" +
+    /** Creates the schema, migrates saves from the old player_stats table, and seeds arena bots. */
+    public static void init() {
+        try (Connection conn = connect(); Statement stmt = conn.createStatement()) {
+            stmt.execute(
+                "CREATE TABLE IF NOT EXISTS players (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                "name TEXT NOT NULL, " +
-                "specialty TEXT, " +
-                "level INTEGER, " +
-                "xp INTEGER, " +
-                "hp INTEGER, " +
-                "attack INTEGER, " +
-                "defense INTEGER, " +
-                "magic_attack INTEGER, " +
-                "magic_defense INTEGER, " +
-                "speed INTEGER, " +
-                "ability TEXT, " +
-                "move1 TEXT, " +
-                "move2 TEXT, " +
-                "move3 TEXT, " +
-                "move4 TEXT" +
-                ");";
+                "name TEXT NOT NULL UNIQUE COLLATE NOCASE, " +
+                "specialty TEXT NOT NULL, " +
+                "level INTEGER NOT NULL DEFAULT 1, " +
+                "xp INTEGER NOT NULL DEFAULT 0, " +
+                "hp INTEGER NOT NULL, attack INTEGER NOT NULL, defense INTEGER NOT NULL, " +
+                "magic_attack INTEGER NOT NULL, magic_defense INTEGER NOT NULL, speed INTEGER NOT NULL, " +
+                "ability TEXT NOT NULL, " +
+                "move1 TEXT NOT NULL, move2 TEXT NOT NULL, move3 TEXT NOT NULL, move4 TEXT NOT NULL, " +
+                "wins INTEGER NOT NULL DEFAULT 0, losses INTEGER NOT NULL DEFAULT 0, " +
+                "rating INTEGER NOT NULL DEFAULT " + Player.STARTING_RATING + ", " +
+                "gold INTEGER NOT NULL DEFAULT " + Player.STARTING_GOLD + ", " +
+                "potions INTEGER NOT NULL DEFAULT " + Player.STARTING_POTIONS + ", " +
+                "is_bot INTEGER NOT NULL DEFAULT 0, " +
+                "created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')), " +
+                "last_played TEXT NOT NULL DEFAULT (datetime('now','localtime')))");
+            stmt.execute(
+                "CREATE TABLE IF NOT EXISTS battles (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "mode TEXT NOT NULL, " +
+                "player_name TEXT NOT NULL, " +
+                "opponent_name TEXT NOT NULL, " +
+                "winner_name TEXT, " +
+                "turns INTEGER NOT NULL, " +
+                "xp_gained INTEGER NOT NULL DEFAULT 0, " +
+                "rating_change INTEGER NOT NULL DEFAULT 0, " +
+                "fought_at TEXT NOT NULL DEFAULT (datetime('now','localtime')))");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_battles_player ON battles(player_name)");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_battles_opponent ON battles(opponent_name)");
 
-            translator.execute(createTableCommand);
-            System.out.println("2. Character table is ready!");
-
-            String insertSql = "INSERT INTO player_stats (name, specialty, level, xp, hp, attack, defense, magic_attack, magic_defense, speed, ability, move1, move2, move3, move4) " +
-                               "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-
-            try (PreparedStatement pstmt = conn.prepareStatement(insertSql)) {
-                pstmt.setString(1, name);
-                pstmt.setString(2, specialty);
-                pstmt.setInt(3, level);
-                pstmt.setInt(4, xp);
-                pstmt.setInt(5, hp);
-                pstmt.setInt(6, attack);
-                pstmt.setInt(7, defense);
-                pstmt.setInt(8, magicAttack);
-                pstmt.setInt(9, magicDefense);
-                pstmt.setInt(10, speed);
-                pstmt.setString(11, ability);
-                pstmt.setString(12, move1);
-                pstmt.setString(13, move2);
-                pstmt.setString(14, move3);
-                pstmt.setString(15, move4);
-
-
-                pstmt.executeUpdate();
-                System.out.println("3. Character '" + name + "' saved successfully with all stats and moves!");
-            }
-
+            migrateLegacy(conn);
+            seedBots(conn);
         } catch (SQLException e) {
-            System.out.println("Something went wrong with the database!");
-            e.printStackTrace();
+            throw new IllegalStateException("Could not initialise the database at " + URL, e);
         }
     }
 
-public static boolean loadPlayer(String searchName) {
-        String query = "SELECT * FROM player_stats WHERE name = ?";
-        String url = "jdbc:sqlite:game_data.db";
+    /**
+     * Older versions inserted a new player_stats row on every save. Keep the newest row per
+     * name, convert it, then rename the old table so this only ever runs once.
+     */
+    private static void migrateLegacy(Connection conn) throws SQLException {
+        if (!tableExists(conn, "player_stats")) return;
 
-        try (Connection conn = DriverManager.getConnection(url);
-             PreparedStatement pstmt = conn.prepareStatement(query)) {
+        int migrated = 0;
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(
+                 "SELECT * FROM player_stats WHERE id IN (SELECT MAX(id) FROM player_stats GROUP BY name COLLATE NOCASE)")) {
+            while (rs.next()) {
+                Player p = new Player();
+                p.name = rs.getString("name");
+                p.speciality = rs.getString("specialty");
+                if (p.name == null || p.speciality == null || existsIn(conn, p.name)) continue;
+                try {
+                    Moves.catalogFor(p.speciality);
+                } catch (IllegalArgumentException e) {
+                    continue;
+                }
+                p.level = Math.max(1, rs.getInt("level"));
+                p.xp = Math.max(0, rs.getInt("xp"));
+                p.setStats(new int[] {rs.getInt("hp"), rs.getInt("attack"), rs.getInt("defense"),
+                    rs.getInt("magic_attack"), rs.getInt("magic_defense"), rs.getInt("speed")});
 
-            pstmt.setString(1, searchName);
-            ResultSet rs = pstmt.executeQuery();
+                Moves.Move abilityMove = Moves.find(p.speciality, rs.getString("ability"));
+                p.ability = abilityMove != null ? abilityMove.name() : Character.abilityOptions(p.speciality)[0].name();
 
-            if (rs.next()) {
-                System.out.println("\n--- CHARACTER LOADED SUCCESSFULLY ---");
-                
-                Player.name = rs.getString("name");
-                Player.speciality = rs.getString("specialty");
-                Player.ability = rs.getString("ability");
-                Player.xp = rs.getInt("xp");
-                
-                System.out.println("Welcome back, " + Player.name + " the " + Player.speciality + "!");
+                Set<Moves.Move> moves = new LinkedHashSet<>();
+                for (int i = 1; i <= 4; i++) {
+                    Moves.Move m = Moves.find(p.speciality, rs.getString("move" + i));
+                    if (m != null && m.unlockLevel() <= p.level) moves.add(m);
+                }
+                for (Moves.Move m : Moves.defaultMoves(p.speciality)) {
+                    if (moves.size() < 4) moves.add(m);
+                }
+                p.moves = moves.toArray(new Moves.Move[0]);
 
-                Player.setPlayerstats.level = rs.getInt("level");
-                Player.setPlayerstats.hp = rs.getInt("hp");
-                Player.setPlayerstats.attack = rs.getInt("attack");
-                Player.setPlayerstats.defense = rs.getInt("defense");
-                Player.setPlayerstats.magicAttack = rs.getInt("magic_attack");
-                Player.setPlayerstats.magicDefense = rs.getInt("magic_defense");
-                Player.setPlayerstats.speed = rs.getInt("speed");
-                
-                Moves.selectedMoves = new Moves.Move[4];
-                Moves.selectedMoves[0] = new Moves.Move(rs.getString("move1"));
-                Moves.selectedMoves[1] = new Moves.Move(rs.getString("move2"));
-                Moves.selectedMoves[2] = new Moves.Move(rs.getString("move3"));
-                Moves.selectedMoves[3] = new Moves.Move(rs.getString("move4"));
-
-                return true;
-
-            } else {
-                System.out.println("No character found with the name: " + searchName);
-                return false; 
+                // Top up / trim stats so the hero is valid under the current rules.
+                int diff = Player.statPointsForLevel(p.level) - p.totalStats();
+                if (diff > 0) {
+                    p.hp += diff;
+                } else if (diff < 0) {
+                    p.setStats(Player.buildGains(Character.recommendedBuild(p.speciality), Player.statPointsForLevel(p.level), 1));
+                }
+                insert(conn, p);
+                migrated++;
             }
+        }
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute("ALTER TABLE player_stats RENAME TO legacy_player_stats");
+        }
+        if (migrated > 0) {
+            System.out.println("[DB] Migrated " + migrated + " hero(es) from the old save format.");
+        }
+    }
 
+    private static boolean tableExists(Connection conn, String table) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?")) {
+            ps.setString(1, table);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
+    private static void seedBots(Connection conn) throws SQLException {
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM players WHERE is_bot = 1")) {
+            if (rs.next() && rs.getInt(1) > 0) return;
+        }
+        Object[][] bots = {
+            {"Bram Ironhide", "Warrior", 2}, {"Lyra Emberveil", "Mage", 4},
+            {"Vex Shadowstep", "Rogue", 6}, {"Sir Aldric", "Paladin", 8},
+            {"Grimgar the Bold", "Warrior", 12}, {"Morwen Frost", "Mage", 15},
+            {"Nyx", "Rogue", 20}, {"Seraphine Dawn", "Paladin", 25}
+        };
+        for (Object[] b : bots) {
+            if (existsIn(conn, (String) b[0])) continue;
+            insert(conn, makeBot((String) b[0], (String) b[1], (Integer) b[2]));
+        }
+    }
+
+    /** Builds an AI hero with the recommended stats and its strongest unlocked moves. */
+    public static Player makeBot(String name, String specialty, int level) {
+        Player p = new Player();
+        p.name = name;
+        p.speciality = specialty;
+        p.level = level;
+        p.bot = true;
+        p.rating = 900 + level * 25;
+        p.ability = Character.abilityOptions(specialty)[0].name();
+        p.setStats(Player.buildGains(Character.recommendedBuild(specialty), Player.statPointsForLevel(level), 1));
+
+        Moves.Move[] all = Moves.catalogFor(specialty);
+        List<Moves.Move> picks = new ArrayList<>();
+        if (level >= Moves.MASTER_LEVEL) picks.add(all[9]);
+        if (level >= Moves.ULTIMATE_LEVEL) picks.add(all[8]);
+        for (Moves.Move m : Moves.defaultMoves(specialty)) {
+            if (picks.size() < 4) picks.add(m);
+        }
+        p.moves = picks.toArray(new Moves.Move[0]);
+        return p;
+    }
+
+    // ------------------------------------------------------------------ players
+
+    public static boolean nameExists(String name) {
+        try (Connection conn = connect()) {
+            return existsIn(conn, name);
         } catch (SQLException e) {
-            System.out.println("Error trying to load the character!");
-            e.printStackTrace();
+            System.out.println("Database error checking name: " + e.getMessage());
+            return true;
+        }
+    }
+
+    private static boolean existsIn(Connection conn, String name) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("SELECT 1 FROM players WHERE name = ?")) {
+            ps.setString(1, name);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
+    private static void insert(Connection conn, Player p) throws SQLException {
+        String sql = "INSERT INTO players (" + PLAYER_COLUMNS + ") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            bind(ps, p);
+            ps.executeUpdate();
+        }
+    }
+
+    /** Inserts a new hero or updates the existing row with the same name. */
+    public static boolean savePlayer(Player p) {
+        String sql = "INSERT INTO players (" + PLAYER_COLUMNS + ") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) " +
+            "ON CONFLICT(name) DO UPDATE SET specialty=excluded.specialty, level=excluded.level, xp=excluded.xp, " +
+            "hp=excluded.hp, attack=excluded.attack, defense=excluded.defense, magic_attack=excluded.magic_attack, " +
+            "magic_defense=excluded.magic_defense, speed=excluded.speed, ability=excluded.ability, " +
+            "move1=excluded.move1, move2=excluded.move2, move3=excluded.move3, move4=excluded.move4, " +
+            "wins=excluded.wins, losses=excluded.losses, rating=excluded.rating, gold=excluded.gold, " +
+            "potions=excluded.potions, is_bot=excluded.is_bot, last_played=datetime('now','localtime')";
+        try (Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            bind(ps, p);
+            ps.executeUpdate();
+            return true;
+        } catch (SQLException e) {
+            System.out.println("[!] Could not save " + p.name + ": " + e.getMessage());
             return false;
         }
     }
 
-    public static boolean loadLatestPlayer() {
-    try { Class.forName("org.sqlite.JDBC"); }
-    catch (ClassNotFoundException e) { return false; }
-
-    String url = "jdbc:sqlite:game_data.db";
-    try (Connection conn = DriverManager.getConnection(url)) {
-        ensureTableExists(conn);
-        String selectSql = "SELECT * FROM player_stats ORDER BY id DESC LIMIT 1";
-        try (PreparedStatement pstmt = conn.prepareStatement(selectSql);
-             ResultSet rs = pstmt.executeQuery()) {
-
-            if (!rs.next()) return false; // no save exists yet — normal on first run
-
-            Player.name = rs.getString("name");
-            Player.speciality = rs.getString("specialty");
-            Player.setPlayerstats.level = rs.getInt("level");
-            Player.xp = rs.getInt("xp");
-            Player.setPlayerstats.hp = rs.getInt("hp");
-            Player.setPlayerstats.attack = rs.getInt("attack");
-            Player.setPlayerstats.defense = rs.getInt("defense");
-            Player.setPlayerstats.magicAttack = rs.getInt("magic_attack");
-            Player.setPlayerstats.magicDefense = rs.getInt("magic_defense");
-            Player.setPlayerstats.speed = rs.getInt("speed");
-            Player.ability = rs.getString("ability");
-            Moves.selectedMoves = new Moves.Move[] {
-                new Moves.Move(rs.getString("move1")), new Moves.Move(rs.getString("move2")),
-                new Moves.Move(rs.getString("move3")), new Moves.Move(rs.getString("move4"))
-            };
-            return true;
+    /** Updates only the arena record, so a defender's other progress and last_played are untouched. */
+    public static void updateRecord(Player p) {
+        try (Connection conn = connect();
+             PreparedStatement ps = conn.prepareStatement("UPDATE players SET wins = ?, losses = ?, rating = ? WHERE name = ?")) {
+            ps.setInt(1, p.wins);
+            ps.setInt(2, p.losses);
+            ps.setInt(3, p.rating);
+            ps.setString(4, p.name);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            System.out.println("[!] Could not update " + p.name + "'s record: " + e.getMessage());
         }
-    } catch (SQLException e) {
-        System.out.println("Something went wrong loading saved data!");
-        e.printStackTrace();
-        return false;
     }
-}
 
-public static void deletePlayer(String name) {
-    try { Class.forName("org.sqlite.JDBC"); }
-    catch (ClassNotFoundException e) { return; }
+    private static void bind(PreparedStatement ps, Player p) throws SQLException {
+        ps.setString(1, p.name);
+        ps.setString(2, p.speciality);
+        ps.setInt(3, p.level);
+        ps.setInt(4, p.xp);
+        int[] s = p.stats();
+        for (int i = 0; i < s.length; i++) ps.setInt(5 + i, s[i]);
+        ps.setString(11, p.ability);
+        for (int i = 0; i < 4; i++) ps.setString(12 + i, p.moves[i].name());
+        ps.setInt(16, p.wins);
+        ps.setInt(17, p.losses);
+        ps.setInt(18, p.rating);
+        ps.setInt(19, p.gold);
+        ps.setInt(20, p.potions);
+        ps.setInt(21, p.bot ? 1 : 0);
+    }
 
-    String url = "jdbc:sqlite:game_data.db";
-    try (Connection conn = DriverManager.getConnection(url)) {
-        ensureTableExists(conn);
-        String deleteSql = "DELETE FROM player_stats WHERE name = ?";
-        try (PreparedStatement pstmt = conn.prepareStatement(deleteSql)) {
-            pstmt.setString(1, name);
-            int rows = pstmt.executeUpdate();
-            System.out.println(rows > 0
-                ? "Deleted " + rows + " save record(s) for '" + name + "'."
-                : "No saved character named '" + name + "' found.");
+    private static Player fromRow(ResultSet rs) throws SQLException {
+        Player p = new Player();
+        p.name = rs.getString("name");
+        p.speciality = rs.getString("specialty");
+        p.level = rs.getInt("level");
+        p.xp = rs.getInt("xp");
+        p.setStats(new int[] {rs.getInt("hp"), rs.getInt("attack"), rs.getInt("defense"),
+            rs.getInt("magic_attack"), rs.getInt("magic_defense"), rs.getInt("speed")});
+        p.ability = rs.getString("ability");
+        p.moves = new Moves.Move[4];
+        Moves.Move[] defaults = Moves.defaultMoves(p.speciality);
+        for (int i = 0; i < 4; i++) {
+            Moves.Move m = Moves.find(p.speciality, rs.getString("move" + (i + 1)));
+            p.moves[i] = m != null ? m : defaults[i];
         }
-    } catch (SQLException e) {
-        System.out.println("Something went wrong deleting the character!");
-        e.printStackTrace();
+        p.wins = rs.getInt("wins");
+        p.losses = rs.getInt("losses");
+        p.rating = rs.getInt("rating");
+        p.gold = rs.getInt("gold");
+        p.potions = rs.getInt("potions");
+        p.bot = rs.getInt("is_bot") == 1;
+        return p;
     }
-}
+
+    public static Player loadPlayer(String name) {
+        try (Connection conn = connect();
+             PreparedStatement ps = conn.prepareStatement("SELECT * FROM players WHERE name = ?")) {
+            ps.setString(1, name);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? fromRow(rs) : null;
+            }
+        } catch (SQLException e) {
+            System.out.println("[!] Error loading '" + name + "': " + e.getMessage());
+            return null;
+        }
+    }
+
+    /** The human hero who played most recently, or null if there is none. */
+    public static Player loadLastPlayed() {
+        List<Player> heroes = query("SELECT * FROM players WHERE is_bot = 0 ORDER BY last_played DESC, id DESC LIMIT 1");
+        return heroes.isEmpty() ? null : heroes.get(0);
+    }
+
+    public static List<Player> listHumanHeroes() {
+        return query("SELECT * FROM players WHERE is_bot = 0 ORDER BY last_played DESC, id DESC");
+    }
+
+    /** Everyone except the given hero, closest rating first. */
+    public static List<Player> listOpponents(Player self) {
+        try (Connection conn = connect();
+             PreparedStatement ps = conn.prepareStatement(
+                 "SELECT * FROM players WHERE name <> ? ORDER BY ABS(rating - ?), level")) {
+            ps.setString(1, self.name);
+            ps.setInt(2, self.rating);
+            return readAll(ps);
+        } catch (SQLException e) {
+            System.out.println("[!] Error listing opponents: " + e.getMessage());
+            return new ArrayList<>();
+        }
+    }
+
+    private static List<Player> query(String sql) {
+        try (Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            return readAll(ps);
+        } catch (SQLException e) {
+            System.out.println("[!] Database error: " + e.getMessage());
+            return new ArrayList<>();
+        }
+    }
+
+    private static List<Player> readAll(PreparedStatement ps) throws SQLException {
+        List<Player> list = new ArrayList<>();
+        try (ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) list.add(fromRow(rs));
+        }
+        return list;
+    }
+
+    public static boolean deletePlayer(String name) {
+        try (Connection conn = connect();
+             PreparedStatement ps = conn.prepareStatement("DELETE FROM players WHERE name = ? AND is_bot = 0")) {
+            ps.setString(1, name);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.out.println("[!] Error deleting '" + name + "': " + e.getMessage());
+            return false;
+        }
+    }
+
+    // ------------------------------------------------------------------ battles & rankings
+
+    public static void recordBattle(String mode, String player, String opponent, String winner,
+                                    int turns, int xpGained, int ratingChange) {
+        String sql = "INSERT INTO battles (mode, player_name, opponent_name, winner_name, turns, xp_gained, rating_change) " +
+                     "VALUES (?,?,?,?,?,?,?)";
+        try (Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, mode);
+            ps.setString(2, player);
+            ps.setString(3, opponent);
+            ps.setString(4, winner);
+            ps.setInt(5, turns);
+            ps.setInt(6, xpGained);
+            ps.setInt(7, ratingChange);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            System.out.println("[!] Could not record battle: " + e.getMessage());
+        }
+    }
 
     public static void showLeaderboard() {
-        String url = "jdbc:sqlite:game_data.db";
-
-        String query = "SELECT name, specialty, MAX(level) as level FROM player_stats GROUP BY name ORDER BY level DESC";
-
-        try (Connection conn = DriverManager.getConnection(url);
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(query)) {
-
-            System.out.println("\n=================================");
-            System.out.println("       🏆 LEADERBOARD 🏆         ");
-            System.out.println("=================================");
-            System.out.printf("%-5s %-15s %-15s %-5s\n", "RANK", "NAME", "SPECIALTY", "LEVEL");
-            System.out.println("-------------------------------------------------");
-
+        String sql = "SELECT name, specialty, level, rating, wins, losses, is_bot FROM players " +
+                     "ORDER BY rating DESC, level DESC, wins DESC LIMIT 20";
+        try (Connection conn = connect(); Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery(sql)) {
+            System.out.println("\n=================================================================");
+            System.out.println("                          LEADERBOARD");
+            System.out.println("=================================================================");
+            System.out.printf("%-5s %-24s %-9s %-6s %-7s %-9s%n", "RANK", "NAME", "CLASS", "LEVEL", "RATING", "W-L");
+            System.out.println("-----------------------------------------------------------------");
             int rank = 1;
             while (rs.next()) {
-                String name = rs.getString("name");
-                String specialty = rs.getString("specialty");
-                int level = rs.getInt("level");
-                
-                // Print each row beautifully formatted
-                System.out.printf("%-5d %-15s %-15s Lvl %d\n", rank, name, specialty, level);
-                rank++;
+                String name = rs.getString("name") + (rs.getInt("is_bot") == 1 ? " (bot)" : "");
+                System.out.printf("%-5d %-24s %-9s %-6d %-7d %d-%d%n", rank++, name, rs.getString("specialty"),
+                    rs.getInt("level"), rs.getInt("rating"), rs.getInt("wins"), rs.getInt("losses"));
             }
-            System.out.println("=================================\n");
-
+            System.out.println("=================================================================");
         } catch (SQLException e) {
-            System.out.println("Error retrieving the leaderboard!");
-            e.printStackTrace();
+            System.out.println("[!] Error retrieving the leaderboard: " + e.getMessage());
         }
     }
-    
-    // Add this inside your Database class
-    public static void inspectPlayer(String searchName) {
-        String url = "jdbc:sqlite:game_data.db";
-        // Grab the highest level version of the searched player
-        String query = "SELECT * FROM player_stats WHERE name = ? ORDER BY level DESC LIMIT 1";
 
-        try (Connection conn = DriverManager.getConnection(url);
-             PreparedStatement pstmt = conn.prepareStatement(query)) {
-
-            pstmt.setString(1, searchName);
-            ResultSet rs = pstmt.executeQuery();
-
-            if (rs.next()) {
-                System.out.println("\n🔍 --- SCOUTING REPORT --- 🔍");
-                System.out.println("Name: " + rs.getString("name"));
-                System.out.println("Class: " + rs.getString("specialty") + " (Level " + rs.getInt("level") + ")");
-                System.out.println("HP: " + rs.getInt("hp"));
-                System.out.println("Attack: " + rs.getInt("attack") + " | Defense: " + rs.getInt("defense"));
-                System.out.println("Magic Atk: " + rs.getInt("magic_attack") + " | Magic Def: " + rs.getInt("magic_defense"));
-                System.out.println("Speed: " + rs.getInt("speed"));
-                System.out.println("Ability: " + rs.getString("ability"));
-                System.out.println("Moveset:");
-                System.out.println("  1. " + rs.getString("move1"));
-                System.out.println("  2. " + rs.getString("move2"));
-                System.out.println("  3. " + rs.getString("move3"));
-                System.out.println("  4. " + rs.getString("move4"));
-                System.out.println("----------------------------\n");
-            } else {
-                System.out.println("\n[!] Fighter '" + searchName + "' is not currently in the Arena.");
+    /** Battles the hero fought, plus arena challenges other players made against them. */
+    public static void showHistory(String name, int limit) {
+        String sql = "SELECT * FROM battles WHERE player_name = ? OR opponent_name = ? ORDER BY id DESC LIMIT ?";
+        try (Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, name);
+            ps.setString(2, name);
+            ps.setInt(3, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                System.out.println("\n=================== BATTLE HISTORY: " + name + " ===================");
+                boolean any = false;
+                while (rs.next()) {
+                    any = true;
+                    boolean wasChallenger = rs.getString("player_name").equalsIgnoreCase(name);
+                    String opponent = wasChallenger ? rs.getString("opponent_name") : rs.getString("player_name");
+                    String winner = rs.getString("winner_name");
+                    String result = winner == null ? "DRAW" : winner.equalsIgnoreCase(name) ? "WIN " : "LOSS";
+                    String extra = wasChallenger
+                        ? (rs.getInt("xp_gained") > 0 ? "+" + rs.getInt("xp_gained") + " XP" : "") + ratingText(rs.getInt("rating_change"))
+                        : "(defended)" + ratingText(-rs.getInt("rating_change"));
+                    System.out.printf("%s  %-8s %s vs %-18s %2d turns  %s%n", rs.getString("fought_at"),
+                        rs.getString("mode"), result, opponent, rs.getInt("turns"), extra);
+                }
+                if (!any) System.out.println("No battles yet. Go fight something!");
             }
-
         } catch (SQLException e) {
-            System.out.println("Error scouting fighter!");
-            e.printStackTrace();
+            System.out.println("[!] Error loading battle history: " + e.getMessage());
         }
+    }
+
+    private static String ratingText(int change) {
+        if (change == 0) return "";
+        return " rating " + (change > 0 ? "+" : "") + change;
     }
 }
